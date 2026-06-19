@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 
 type WorkoutPageProps = {
   params: Promise<{ workoutId: string }>;
+  searchParams: Promise<{ focusExercise?: string | string[] }>;
 };
 
 function formatDate(date: Date) {
@@ -38,15 +39,17 @@ function formatMetric(metric: { type: string; value: { toString(): string }; uni
   return `${value} ${metric.unit.toLowerCase()}`;
 }
 
-export default async function WorkoutPage({ params }: WorkoutPageProps) {
+export default async function WorkoutPage({ params, searchParams }: WorkoutPageProps) {
   await requireUser();
 
   const { workoutId } = await params;
+  const focusedExercise = (await searchParams).focusExercise;
+  const focusedExerciseId = Array.isArray(focusedExercise) ? focusedExercise[0] : focusedExercise;
   const workout = await prisma.workout.findUnique({
     where: { id: workoutId },
     include: {
       exercises: {
-        orderBy: { order: "asc" },
+        orderBy: { order: "desc" },
         include: {
           exercise: true,
           sets: {
@@ -120,6 +123,7 @@ export default async function WorkoutPage({ params }: WorkoutPageProps) {
             return (
               <section
                 key={entry.id}
+                id={`exercise-${entry.id}`}
                 className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/10"
               >
                 <div className="flex items-start justify-between gap-4">
@@ -170,7 +174,13 @@ export default async function WorkoutPage({ params }: WorkoutPageProps) {
                 <form action={addSet} className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-950 p-3">
                   <p className="mb-3 text-sm font-black text-zinc-300">Quick add set</p>
                   <div className="grid grid-cols-2 gap-2">
-                    <input className="metric-input" name="reps" inputMode="decimal" placeholder="Reps" />
+                    <input
+                      autoFocus={entry.id === focusedExerciseId}
+                      className="metric-input"
+                      name="reps"
+                      inputMode="decimal"
+                      placeholder="Reps"
+                    />
                     <div className="flex gap-1">
                       <input className="metric-input" name="weight" inputMode="decimal" placeholder="Weight" />
                       <select className="metric-select" name="weightUnit" defaultValue="LB">

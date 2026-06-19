@@ -24,7 +24,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const message = error ? errorMessages[error] : null;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 py-10 text-zinc-50">
+    <main className="flex min-h-dvh items-center justify-center bg-zinc-950 px-4 py-6 text-zinc-50 sm:py-10">
       <section className="w-full max-w-sm rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl shadow-black/30">
         <div className="mb-8">
           <p className="text-sm font-medium uppercase tracking-[0.3em] text-lime-300">

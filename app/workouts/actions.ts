@@ -68,7 +68,7 @@ export async function addExerciseToWorkoutAction(
     orderBy: { order: "desc" },
   });
 
-  await prisma.workoutExercise.create({
+  const workoutExercise = await prisma.workoutExercise.create({
     data: {
       workoutId,
       exerciseId: exercise.id,
@@ -77,6 +77,7 @@ export async function addExerciseToWorkoutAction(
   });
 
   revalidatePath(`/workouts/${workoutId}`);
+  redirect(`/workouts/${workoutId}?focusExercise=${workoutExercise.id}#exercise-${workoutExercise.id}`);
 }
 
 export async function removeWorkoutExerciseAction(
