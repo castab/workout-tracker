@@ -116,6 +116,15 @@ The app is mobile-first because it is primarily used during workouts at the gym.
 
 HyperUI is used as design inspiration through copied Tailwind patterns, not as an installed UI package.
 
+## PWA Roadmap
+
+Current support: installable app shell with an offline fallback page. The service worker caches static assets conservatively and does not cache authenticated workout data or queue offline edits.
+
+Future:
+
+- Phase 2: read-only offline access to recently visited workouts.
+- Phase 3: offline workout entry with IndexedDB-backed mutation queue and sync.
+
 ## Code Layout
 
 - `app/page.tsx` lists recent workouts and starts new workouts.
