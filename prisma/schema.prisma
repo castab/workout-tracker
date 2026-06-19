@@ -29,7 +29,6 @@ enum MetricUnit {
 
 model User {
   id           String    @id @default(cuid())
-  email        String    @unique
   passwordHash String
   createdAt    DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime  @updatedAt @db.Timestamptz(3)

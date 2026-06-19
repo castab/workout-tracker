@@ -35,12 +35,7 @@ This project uses a checked-in `.env.development` for local development defaults
 
 `npm run dev` starts the local PostgreSQL 18 container before starting Next.js.
 
-Development login defaults after seeding:
-
-```text
-Email: admin@example.com
-Password: password
-```
+On first setup, the app creates the password holder automatically and prints a strong initial password in the server logs. The password is only logged when no auth user exists.
 
 ## Getting Started
 
@@ -56,11 +51,10 @@ npm install
 npm run dev
 ```
 
-3. In a second terminal, run the initial database migration and seed the first user if needed.
+3. In a second terminal, run the initial database migration.
 
 ```bash
 npm run prisma:migrate
-npm run db:seed
 ```
 
 4. Open the app.
@@ -90,14 +84,9 @@ npm run db:seed
 
 The app is single-user and password protected.
 
-The initial user is created by the seed script using:
+The auth user is created automatically on first visit to the login page when no user exists. A strong generated password is printed once in the server logs. After signing in, use Settings to change the password.
 
-```env
-INITIAL_USER_EMAIL
-INITIAL_USER_PASSWORD
-```
-
-For development, `.env.development` contains safe defaults. Production deployments should provide their own secrets through the hosting environment.
+`npm run db:seed` is optional and uses the same behavior: it creates and logs a generated password only when no auth user exists.
 
 ## Data Model
 
@@ -136,7 +125,7 @@ HyperUI is used as design inspiration through copied Tailwind patterns, not as a
 - `lib/auth.ts` manages DB-backed sessions and the HTTP-only session cookie.
 - `lib/prisma.ts` creates the Prisma client using `@prisma/adapter-pg`.
 - `prisma/schema.prisma` contains the PostgreSQL data model.
-- `prisma/seed.ts` creates or updates the initial user from environment variables.
+- `prisma/seed.ts` optionally creates the auth user with a generated password.
 
 ## Project History
 

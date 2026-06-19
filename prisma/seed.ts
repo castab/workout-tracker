@@ -1,19 +1,10 @@
 import "dotenv/config";
+import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../lib/generated/prisma/client";
 
-const email = process.env.INITIAL_USER_EMAIL;
-const password = process.env.INITIAL_USER_PASSWORD;
 const databaseUrl = process.env.DATABASE_URL;
-
-if (!email) {
-  throw new Error("INITIAL_USER_EMAIL is required to seed the initial user.");
-}
-
-if (!password) {
-  throw new Error("INITIAL_USER_PASSWORD is required to seed the initial user.");
-}
 
 if (!databaseUrl) {
   throw new Error("DATABASE_URL is required to seed the initial user.");
@@ -23,15 +14,24 @@ const adapter = new PrismaPg({ connectionString: databaseUrl });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const passwordHash = await bcrypt.hash(password!, 12);
+  const existingUser = await prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
 
-  await prisma.user.upsert({
-    where: { email: email! },
-    update: { passwordHash },
-    create: { email: email!, passwordHash },
+  if (existingUser) {
+    console.log("Auth user already exists; seed skipped.");
+    return;
+  }
+
+  const password = randomBytes(32).toString("base64url");
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  await prisma.user.create({
+    data: {
+      id: "auth-user",
+      passwordHash,
+    },
   });
 
-  console.log(`Seeded initial user: ${email}`);
+  console.log(`Workout Tracker initial password: ${password}`);
 }
 
 main()

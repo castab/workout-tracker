@@ -38,7 +38,7 @@ Run local database commands through the package scripts so `.env.development` is
 - `npm run prisma:studio`
 - `npm run db:seed`
 
-The development seed creates `admin@example.com` / `password` from `.env.development`. Do not treat these as production credentials.
+The auth user is created automatically with a generated password when no user exists. The initial password is logged server-side only on that first creation.
 
 ## Database Rules
 
@@ -67,10 +67,7 @@ Authentication should use:
 
 Current session cookie name is `workout_tracker_session`. Session tokens are random values stored in the browser and SHA-256 hashes stored in the database.
 
-The initial user should be created by a seed script from:
-
-- `INITIAL_USER_EMAIL`
-- `INITIAL_USER_PASSWORD`
+The auth user is created automatically when no user exists. No username is used. Change the generated password from the settings page after first login.
 
 Do not hardcode production credentials.
 

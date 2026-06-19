@@ -21,7 +21,7 @@ function WorkoutDate({ date }: { date: Date }) {
 }
 
 export default async function Home() {
-  const user = await requireUser();
+  await requireUser();
   const workouts = await prisma.workout.findMany({
     orderBy: { startedAt: "desc" },
     take: 8,
@@ -46,14 +46,54 @@ export default async function Home() {
               <h1 className="mt-3 text-3xl font-black tracking-tight">
                 Ready to train?
               </h1>
-              <p className="mt-2 text-sm text-zinc-400">Signed in as {user.email}</p>
+              <p className="mt-2 text-sm text-zinc-400">Password-protected access.</p>
             </div>
 
-            <form action={logoutAction}>
-              <button className="rounded-full border border-zinc-700 px-4 py-2 text-sm font-bold text-zinc-200 transition hover:border-zinc-500">
-                Logout
-              </button>
-            </form>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/settings"
+                className="grid size-11 place-items-center rounded-full border border-zinc-700 text-zinc-200 transition hover:border-zinc-500"
+                aria-label="Settings"
+                title="Settings"
+              >
+                <svg
+                  aria-hidden="true"
+                  className="size-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M9.7 3.4a2.4 2.4 0 0 1 4.6 0l.2.8a2.4 2.4 0 0 0 3.2 1.8l.8-.3a2.4 2.4 0 0 1 2.3 4l-.6.5a2.4 2.4 0 0 0 0 3.6l.6.5a2.4 2.4 0 0 1-2.3 4l-.8-.3a2.4 2.4 0 0 0-3.2 1.8l-.2.8a2.4 2.4 0 0 1-4.6 0l-.2-.8a2.4 2.4 0 0 0-3.2-1.8l-.8.3a2.4 2.4 0 0 1-2.3-4l.6-.5a2.4 2.4 0 0 0 0-3.6l-.6-.5a2.4 2.4 0 0 1 2.3-4l.8.3a2.4 2.4 0 0 0 3.2-1.8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </Link>
+
+              <form action={logoutAction}>
+                <button
+                  className="grid size-11 place-items-center rounded-full border border-zinc-700 text-zinc-200 transition hover:border-zinc-500"
+                  aria-label="Logout"
+                  title="Logout"
+                >
+                  <svg
+                    aria-hidden="true"
+                    className="size-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M14 7V5a2 2 0 0 0-2-2H5v18h7a2 2 0 0 0 2-2v-2" />
+                    <path d="M9 12h12" />
+                    <path d="m17 8 4 4-4 4" />
+                  </svg>
+                </button>
+              </form>
+            </div>
           </div>
         </header>
 

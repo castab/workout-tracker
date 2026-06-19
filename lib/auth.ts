@@ -1,6 +1,7 @@
 import "server-only";
 
 import { randomBytes, createHash } from "node:crypto";
+import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -11,6 +12,38 @@ const sessionDurationMs = 1000 * 60 * 60 * 24 * 30;
 
 export function hashSessionToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
+}
+
+export async function ensureAuthUser() {
+  const existingUser = await prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
+
+  if (existingUser) {
+    return existingUser;
+  }
+
+  const password = randomBytes(32).toString("base64url");
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  try {
+    const user = await prisma.user.create({
+      data: {
+        id: "auth-user",
+        passwordHash,
+      },
+    });
+
+    console.info(`Workout Tracker initial password: ${password}`);
+
+    return user;
+  } catch (error) {
+    const user = await prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
+
+    if (user) {
+      return user;
+    }
+
+    throw error;
+  }
 }
 
 export async function createSession(userId: string) {
