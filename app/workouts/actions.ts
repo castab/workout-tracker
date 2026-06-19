@@ -240,6 +240,7 @@ export async function addSetAction(workoutId: string, workoutExerciseId: string,
   });
 
   revalidatePath(`/workouts/${workoutId}`);
+  redirect(`/workouts/${workoutId}?focusExercise=${workoutExerciseId}#exercise-${workoutExerciseId}`);
 }
 
 export async function updateSetAction(workoutId: string, setId: string, formData: FormData) {

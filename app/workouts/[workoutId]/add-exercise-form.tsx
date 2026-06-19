@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 export type ExerciseSuggestion = {
   id: string;
@@ -27,6 +27,8 @@ function formatLastUsed(lastUsedAt: string) {
 
 export function AddExerciseForm({ action, suggestions }: AddExerciseFormProps) {
   const [name, setName] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const query = name.trim().toLowerCase();
   const matches = query.length >= 3
     ? suggestions
@@ -47,9 +49,10 @@ export function AddExerciseForm({ action, suggestions }: AddExerciseFormProps) {
     : [];
 
   return (
-    <form action={action} className="mt-4 space-y-3">
+    <form ref={formRef} action={action} className="mt-4 space-y-3">
       <div className="flex gap-2">
         <input
+          ref={inputRef}
           className="h-14 min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
           name="name"
           placeholder="Bench Press"
@@ -74,7 +77,15 @@ export function AddExerciseForm({ action, suggestions }: AddExerciseFormProps) {
                 key={suggestion.id}
                 type="button"
                 className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl px-3 text-left transition hover:bg-zinc-900 focus:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-lime-300/20"
-                onClick={() => setName(suggestion.name)}
+                onClick={() => {
+                  setName(suggestion.name);
+
+                  if (inputRef.current) {
+                    inputRef.current.value = suggestion.name;
+                  }
+
+                  formRef.current?.requestSubmit();
+                }}
               >
                 <span className="font-bold text-zinc-100">{suggestion.name}</span>
                 <span className="shrink-0 text-xs font-semibold text-zinc-500">
