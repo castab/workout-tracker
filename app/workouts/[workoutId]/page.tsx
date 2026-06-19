@@ -6,8 +6,10 @@ import {
   deleteSetAction,
   finishWorkoutAction,
   removeWorkoutExerciseAction,
+  updateWorkoutExerciseNameAction,
 } from "@/app/workouts/actions";
 import { AddExerciseForm, type ExerciseSuggestion } from "@/app/workouts/[workoutId]/add-exercise-form";
+import { ExerciseNameEditor } from "@/app/workouts/[workoutId]/exercise-name-editor";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -97,6 +99,7 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
     notFound();
   }
 
+  const isActiveWorkout = !workout.endedAt;
   const addExercise = addExerciseToWorkoutAction.bind(null, workout.id);
   const finishWorkout = finishWorkoutAction.bind(null, workout.id);
 
@@ -116,7 +119,7 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
               </h1>
             </div>
 
-            {!workout.endedAt ? (
+            {isActiveWorkout ? (
               <form action={finishWorkout}>
                 <button className="rounded-full bg-lime-300 px-4 py-2 text-sm font-black text-zinc-950">
                   Finish
@@ -126,20 +129,32 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
           </div>
         </header>
 
-        <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
-          <h2 className="text-xl font-black">Add exercise</h2>
-          <AddExerciseForm action={addExercise} suggestions={exerciseSuggestions} />
-        </section>
+        {isActiveWorkout ? (
+          <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
+            <h2 className="text-xl font-black">Add exercise</h2>
+            <AddExerciseForm action={addExercise} suggestions={exerciseSuggestions} />
+          </section>
+        ) : (
+          <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
+            <h2 className="text-xl font-black">Workout locked</h2>
+            <p className="mt-2 text-sm font-semibold text-zinc-400">
+              Completed workouts are read-only so the recorded history stays intact.
+            </p>
+          </section>
+        )}
 
         {workout.exercises.length === 0 ? (
           <section className="rounded-3xl border border-dashed border-zinc-700 p-8 text-center">
             <p className="font-black text-zinc-200">No exercises yet.</p>
-            <p className="mt-1 text-sm text-zinc-500">Add your first movement above.</p>
+            <p className="mt-1 text-sm text-zinc-500">
+              {isActiveWorkout ? "Add your first movement above." : "This workout was completed without exercises."}
+            </p>
           </section>
         ) : (
           workout.exercises.map((entry) => {
             const addSet = addSetAction.bind(null, workout.id, entry.id);
             const removeExercise = removeWorkoutExerciseAction.bind(null, workout.id, entry.id);
+            const updateExerciseName = updateWorkoutExerciseNameAction.bind(null, workout.id, entry.id);
 
             return (
               <section
@@ -152,14 +167,20 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
                     <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
                       Exercise {entry.order + 1}
                     </p>
-                    <h2 className="mt-2 text-2xl font-black">{entry.exercise.name}</h2>
+                    {isActiveWorkout ? (
+                      <ExerciseNameEditor name={entry.exercise.name} action={updateExerciseName} />
+                    ) : (
+                      <h2 className="mt-2 text-2xl font-black">{entry.exercise.name}</h2>
+                    )}
                   </div>
 
-                  <form action={removeExercise}>
-                    <button className="rounded-full border border-red-400/40 px-3 py-2 text-sm font-bold text-red-200">
-                      Delete
-                    </button>
-                  </form>
+                  {isActiveWorkout ? (
+                    <form action={removeExercise}>
+                      <button className="rounded-full border border-red-400/40 px-3 py-2 text-sm font-bold text-red-200">
+                        Delete
+                      </button>
+                    </form>
+                  ) : null}
                 </div>
 
                 {entry.sets.length > 0 ? (
@@ -181,55 +202,59 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
                             </p>
                           </div>
 
-                          <form action={deleteSet}>
-                            <button className="rounded-full bg-zinc-800 px-3 py-2 text-sm font-bold text-zinc-300">
-                              Remove
-                            </button>
-                          </form>
+                          {isActiveWorkout ? (
+                            <form action={deleteSet}>
+                              <button className="rounded-full bg-zinc-800 px-3 py-2 text-sm font-bold text-zinc-300">
+                                Remove
+                              </button>
+                            </form>
+                          ) : null}
                         </div>
                       );
                     })}
                   </div>
                 ) : null}
 
-                <form action={addSet} className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-950 p-3">
-                  <p className="mb-3 text-sm font-black text-zinc-300">Quick add set</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      autoFocus={entry.id === focusedExerciseId}
-                      className="metric-input"
-                      name="reps"
-                      inputMode="decimal"
-                      placeholder="Reps"
-                    />
-                    <div className="flex gap-1">
-                      <input className="metric-input" name="weight" inputMode="decimal" placeholder="Weight" />
-                      <select className="metric-select" name="weightUnit" defaultValue="LB">
-                        <option value="LB">lb</option>
-                        <option value="KG">kg</option>
-                      </select>
+                {isActiveWorkout ? (
+                  <form action={addSet} className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-950 p-3">
+                    <p className="mb-3 text-sm font-black text-zinc-300">Quick add set</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        autoFocus={entry.id === focusedExerciseId}
+                        className="metric-input"
+                        name="reps"
+                        inputMode="decimal"
+                        placeholder="Reps"
+                      />
+                      <div className="flex gap-1">
+                        <input className="metric-input" name="weight" inputMode="decimal" placeholder="Weight" />
+                        <select className="metric-select" name="weightUnit" defaultValue="LB">
+                          <option value="LB">lb</option>
+                          <option value="KG">kg</option>
+                        </select>
+                      </div>
+                      <div className="flex gap-1">
+                        <input className="metric-input" name="time" inputMode="decimal" placeholder="Time" />
+                        <select className="metric-select" name="timeUnit" defaultValue="MINUTES">
+                          <option value="SECONDS">sec</option>
+                          <option value="MINUTES">min</option>
+                        </select>
+                      </div>
+                      <div className="flex gap-1">
+                        <input className="metric-input" name="distance" inputMode="decimal" placeholder="Distance" />
+                        <select className="metric-select" name="distanceUnit" defaultValue="MILES">
+                          <option value="MILES">mi</option>
+                          <option value="KM">km</option>
+                          <option value="METERS">m</option>
+                        </select>
+                      </div>
+                      <input className="metric-input" name="laps" inputMode="decimal" placeholder="Laps" />
+                      <button className="h-12 rounded-xl bg-lime-300 px-4 font-black text-zinc-950">
+                        Add set
+                      </button>
                     </div>
-                    <div className="flex gap-1">
-                      <input className="metric-input" name="time" inputMode="decimal" placeholder="Time" />
-                      <select className="metric-select" name="timeUnit" defaultValue="MINUTES">
-                        <option value="SECONDS">sec</option>
-                        <option value="MINUTES">min</option>
-                      </select>
-                    </div>
-                    <div className="flex gap-1">
-                      <input className="metric-input" name="distance" inputMode="decimal" placeholder="Distance" />
-                      <select className="metric-select" name="distanceUnit" defaultValue="MILES">
-                        <option value="MILES">mi</option>
-                        <option value="KM">km</option>
-                        <option value="METERS">m</option>
-                      </select>
-                    </div>
-                    <input className="metric-input" name="laps" inputMode="decimal" placeholder="Laps" />
-                    <button className="h-12 rounded-xl bg-lime-300 px-4 font-black text-zinc-950">
-                      Add set
-                    </button>
-                  </div>
-                </form>
+                  </form>
+                ) : null}
               </section>
             );
           })

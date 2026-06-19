@@ -26,6 +26,15 @@ function metricUnit(formData: FormData, key: string, fallback: MetricUnit) {
   return unit === "" ? fallback : (unit as MetricUnit);
 }
 
+async function isActiveWorkout(workoutId: string) {
+  const workout = await prisma.workout.findUnique({
+    where: { id: workoutId },
+    select: { endedAt: true },
+  });
+
+  return workout?.endedAt === null;
+}
+
 export async function createWorkoutAction() {
   await requireUser();
 
@@ -36,8 +45,8 @@ export async function createWorkoutAction() {
 export async function finishWorkoutAction(workoutId: string) {
   await requireUser();
 
-  await prisma.workout.update({
-    where: { id: workoutId },
+  await prisma.workout.updateMany({
+    where: { id: workoutId, endedAt: null },
     data: { endedAt: new Date() },
   });
 
@@ -50,6 +59,10 @@ export async function addExerciseToWorkoutAction(
   formData: FormData,
 ) {
   await requireUser();
+
+  if (!(await isActiveWorkout(workoutId))) {
+    return;
+  }
 
   const name = textValue(formData, "name");
 
@@ -86,13 +99,87 @@ export async function removeWorkoutExerciseAction(
 ) {
   await requireUser();
 
+  const workoutExercise = await prisma.workoutExercise.findUnique({
+    where: { id: workoutExerciseId },
+    include: { workout: { select: { endedAt: true } } },
+  });
+
+  if (!workoutExercise || workoutExercise.workoutId !== workoutId || workoutExercise.workout.endedAt) {
+    return;
+  }
+
   await prisma.workoutExercise.delete({ where: { id: workoutExerciseId } });
+
+  revalidatePath(`/workouts/${workoutId}`);
+}
+
+export async function updateWorkoutExerciseNameAction(
+  workoutId: string,
+  workoutExerciseId: string,
+  formData: FormData,
+) {
+  await requireUser();
+
+  const name = textValue(formData, "name");
+
+  if (!name) {
+    return;
+  }
+
+  const workoutExercise = await prisma.workoutExercise.findUnique({
+    where: { id: workoutExerciseId },
+    include: { exercise: true, workout: { select: { endedAt: true } } },
+  });
+
+  if (!workoutExercise || workoutExercise.workoutId !== workoutId || workoutExercise.workout.endedAt) {
+    return;
+  }
+
+  if (workoutExercise.exercise.name === name) {
+    return;
+  }
+
+  const existingExercise = await prisma.exercise.findUnique({ where: { name } });
+
+  if (existingExercise) {
+    await prisma.workoutExercise.update({
+      where: { id: workoutExerciseId },
+      data: { exerciseId: existingExercise.id },
+    });
+  } else {
+    const usageCount = await prisma.workoutExercise.count({
+      where: { exerciseId: workoutExercise.exerciseId },
+    });
+
+    if (usageCount === 1) {
+      await prisma.exercise.update({
+        where: { id: workoutExercise.exerciseId },
+        data: { name },
+      });
+    } else {
+      const exercise = await prisma.exercise.create({ data: { name } });
+
+      await prisma.workoutExercise.update({
+        where: { id: workoutExerciseId },
+        data: { exerciseId: exercise.id },
+      });
+    }
+  }
 
   revalidatePath(`/workouts/${workoutId}`);
 }
 
 export async function addSetAction(workoutId: string, workoutExerciseId: string, formData: FormData) {
   await requireUser();
+
+  const workoutExercise = await prisma.workoutExercise.findUnique({
+    where: { id: workoutExerciseId },
+    include: { workout: { select: { endedAt: true } } },
+  });
+
+  if (!workoutExercise || workoutExercise.workoutId !== workoutId || workoutExercise.workout.endedAt) {
+    return;
+  }
 
   const metrics: NewMetric[] = [
     { type: "REPS" as const, unit: "COUNT" as const, value: metricValue(formData, "reps") },
@@ -130,6 +217,22 @@ export async function addSetAction(workoutId: string, workoutExerciseId: string,
 
 export async function deleteSetAction(workoutId: string, setId: string) {
   await requireUser();
+
+  const set = await prisma.exerciseSet.findUnique({
+    where: { id: setId },
+    include: {
+      workoutExercise: {
+        select: {
+          workoutId: true,
+          workout: { select: { endedAt: true } },
+        },
+      },
+    },
+  });
+
+  if (!set || set.workoutExercise.workoutId !== workoutId || set.workoutExercise.workout.endedAt) {
+    return;
+  }
 
   await prisma.exerciseSet.delete({ where: { id: setId } });
 
