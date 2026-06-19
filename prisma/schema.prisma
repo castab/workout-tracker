@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MetricType {
+  REPS
+  WEIGHT
+  TIME
+  DISTANCE
+  LAPS
+}
+
+enum MetricUnit {
+  COUNT
+  LB
+  KG
+  SECONDS
+  MINUTES
+  METERS
+  KM
+  MILES
+  LAPS
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sessions     Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Workout {
+  id        String            @id @default(cuid())
+  startedAt DateTime          @default(now())
+  endedAt   DateTime?
+  emphasis  String            @default("")
+  notes     String            @default("")
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  exercises WorkoutExercise[]
+
+  @@index([startedAt])
+}
+
+model Exercise {
+  id              String            @id @default(cuid())
+  name            String            @unique
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  workoutEntries  WorkoutExercise[]
+}
+
+model WorkoutExercise {
+  id         String        @id @default(cuid())
+  workoutId  String
+  exerciseId String
+  order      Int
+  notes      String        @default("")
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  exercise   Exercise      @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  sets       ExerciseSet[]
+  workout    Workout       @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@unique([workoutId, order])
+  @@index([exerciseId])
+}
+
+model ExerciseSet {
+  id                String          @id @default(cuid())
+  workoutExerciseId String
+  order             Int
+  performedAt       DateTime        @default(now())
+  notes             String          @default("")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  metrics           SetMetric[]
+  workoutExercise   WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([workoutExerciseId, order])
+}
+
+model SetMetric {
+  id        String      @id @default(cuid())
+  setId     String
+  type      MetricType
+  value     Decimal     @db.Decimal(10, 2)
+  unit      MetricUnit
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  set       ExerciseSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  @@unique([setId, type])
+}

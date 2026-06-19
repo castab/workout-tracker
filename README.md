@@ -1,36 +1,103 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Workout Tracker
+
+A mobile-first, single-user workout tracker for replacing a paper gym notebook. The app tracks workouts, exercises, sets, and flexible metrics such as reps, weight, time, distance, and laps.
+
+## Stack
+
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- HyperUI-inspired UI components
+- Prisma
+- PostgreSQL 18
+- Docker Compose
+
+## Development Requirements
+
+- Node.js
+- npm
+- Docker Desktop or a compatible Docker runtime
+
+## Development Environment
+
+This project uses a checked-in `.env.development` for local development defaults. These values are intentionally non-production credentials for the local Docker database.
+
+`npm run dev` starts the local PostgreSQL 18 container before starting Next.js.
 
 ## Getting Started
 
-First, run the development server:
+1. Install dependencies.
+
+```bash
+npm install
+```
+
+2. Start the development server and database.
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Open the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Database
 
-## Learn More
+The development database runs in Docker using PostgreSQL 18.
 
-To learn more about Next.js, take a look at the following resources:
+Useful commands:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run db:up
+npm run db:down
+npm run prisma:migrate
+npm run prisma:generate
+npm run prisma:studio
+npm run db:seed
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Authentication
 
-## Deploy on Vercel
+The app is single-user and password protected.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The initial user is created by the seed script using:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```env
+INITIAL_USER_EMAIL
+INITIAL_USER_PASSWORD
+```
+
+For development, `.env.development` contains safe defaults. Production deployments should provide their own secrets through the hosting environment.
+
+## Data Model
+
+The app uses a flexible metric model rather than fixed set fields.
+
+A workout contains exercises. Exercises contain sets. Sets contain one or more metrics.
+
+Example metric combinations:
+
+- reps + weight
+- reps only
+- time only
+- distance + time
+- laps + time
+
+## UI Direction
+
+The app is mobile-first because it is primarily used during workouts at the gym. UI patterns should prioritize fast data entry, large tap targets, and low-friction editing.
+
+HyperUI is used as design inspiration through copied Tailwind patterns, not as an installed UI package.
+
+## Project History
+
+This project is a full-stack rebuild based on two older repositories:
+
+- [`fitness-ui`](https://github.com/castab/fitness-ui)
+- [`fitness-backend`](https://github.com/castab/fitness-backend)
+
+Those projects used a separate frontend/backend architecture with Next.js, Kotlin Spring Boot, and MongoDB. This app keeps the same core purpose of replacing a paper gym notebook, but merges the concept into one full-stack Next.js application backed by Prisma and PostgreSQL.

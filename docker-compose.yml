@@ -1,0 +1,13 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    env_file:
+      - .env.development
+    ports:
+      - "5432:5432"
+    volumes:
+      - workout_tracker_postgres_18_data:/var/lib/postgresql
+
+volumes:
+  workout_tracker_postgres_18_data:
