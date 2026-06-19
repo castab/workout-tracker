@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { LocalDateTime } from "@/app/local-date-time";
 import {
   addExerciseToWorkoutAction,
   addSetAction,
@@ -30,6 +31,10 @@ function formatDate(date: Date) {
     hour: "numeric",
     minute: "2-digit",
   }).format(date);
+}
+
+function WorkoutDate({ date }: { date: Date }) {
+  return <LocalDateTime isoString={date.toISOString()} fallback={formatDate(date)} weekday="short" />;
 }
 
 function formatMetricValue(value: { toString(): string }) {
@@ -125,7 +130,7 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
 
           <div className="mt-5 flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold text-zinc-400">{formatDate(workout.startedAt)}</p>
+              <p className="text-sm font-semibold text-zinc-400"><WorkoutDate date={workout.startedAt} /></p>
               <h1 className="mt-2 text-3xl font-black tracking-tight">
                 {workout.endedAt ? "Workout complete" : "Active workout"}
               </h1>

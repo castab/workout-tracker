@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { logoutAction } from "@/app/login/actions";
+import { LocalDateTime } from "@/app/local-date-time";
 import { createWorkoutAction } from "@/app/workouts/actions";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -13,6 +14,10 @@ function formatDate(date: Date) {
     hour: "numeric",
     minute: "2-digit",
   }).format(date);
+}
+
+function WorkoutDate({ date }: { date: Date }) {
+  return <LocalDateTime isoString={date.toISOString()} fallback={formatDate(date)} />;
 }
 
 export default async function Home() {
@@ -60,7 +65,7 @@ export default async function Home() {
             <p className="text-sm font-black uppercase tracking-[0.2em]">Active workout</p>
             <p className="mt-2 text-2xl font-black">Continue workout</p>
             <p className="mt-1 text-sm font-semibold">
-              Started {formatDate(activeWorkout.startedAt)}
+              Started <WorkoutDate date={activeWorkout.startedAt} />
             </p>
           </Link>
         ) : (
@@ -108,7 +113,7 @@ export default async function Home() {
                   >
                     <div className="flex items-center justify-between gap-4">
                       <div>
-                        <p className="font-black">{formatDate(workout.startedAt)}</p>
+                        <p className="font-black"><WorkoutDate date={workout.startedAt} /></p>
                         <p className="mt-1 text-sm text-zinc-400">
                           {workout.exercises.length} exercises · {setCount} sets
                         </p>
