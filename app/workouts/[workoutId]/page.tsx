@@ -7,6 +7,7 @@ import {
   finishWorkoutAction,
   removeWorkoutExerciseAction,
 } from "@/app/workouts/actions";
+import { AddExerciseForm, type ExerciseSuggestion } from "@/app/workouts/[workoutId]/add-exercise-form";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -39,27 +40,58 @@ function formatMetric(metric: { type: string; value: { toString(): string }; uni
   return `${value} ${metric.unit.toLowerCase()}`;
 }
 
+type ExerciseSuggestionRow = {
+  id: string;
+  name: string;
+  usageCount: number;
+  lastUsedAt: Date;
+};
+
+async function getExerciseSuggestions(): Promise<ExerciseSuggestion[]> {
+  const suggestions = await prisma.$queryRaw<ExerciseSuggestionRow[]>`
+    SELECT
+      e.id,
+      e.name,
+      COUNT(*)::int AS "usageCount",
+      MAX(we."createdAt") AS "lastUsedAt"
+    FROM "WorkoutExercise" we
+    JOIN "Exercise" e ON e.id = we."exerciseId"
+    WHERE we."createdAt" >= NOW() - INTERVAL '90 days'
+    GROUP BY e.id, e.name
+    ORDER BY COUNT(*) DESC, MAX(we."createdAt") DESC, e.name ASC
+    LIMIT 50
+  `;
+
+  return suggestions.map((suggestion) => ({
+    ...suggestion,
+    lastUsedAt: suggestion.lastUsedAt.toISOString(),
+  }));
+}
+
 export default async function WorkoutPage({ params, searchParams }: WorkoutPageProps) {
   await requireUser();
 
   const { workoutId } = await params;
   const focusedExercise = (await searchParams).focusExercise;
   const focusedExerciseId = Array.isArray(focusedExercise) ? focusedExercise[0] : focusedExercise;
-  const workout = await prisma.workout.findUnique({
-    where: { id: workoutId },
-    include: {
-      exercises: {
-        orderBy: { order: "desc" },
-        include: {
-          exercise: true,
-          sets: {
-            orderBy: { order: "asc" },
-            include: { metrics: true },
+  const [workout, exerciseSuggestions] = await Promise.all([
+    prisma.workout.findUnique({
+      where: { id: workoutId },
+      include: {
+        exercises: {
+          orderBy: { order: "desc" },
+          include: {
+            exercise: true,
+            sets: {
+              orderBy: { order: "asc" },
+              include: { metrics: true },
+            },
           },
         },
       },
-    },
-  });
+    }),
+    getExerciseSuggestions(),
+  ]);
 
   if (!workout) {
     notFound();
@@ -96,18 +128,7 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
 
         <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
           <h2 className="text-xl font-black">Add exercise</h2>
-          <form action={addExercise} className="mt-4 flex gap-2">
-            <input
-              className="h-14 min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
-              name="name"
-              placeholder="Bench Press"
-              autoComplete="off"
-              required
-            />
-            <button className="h-14 rounded-2xl bg-lime-300 px-5 font-black text-zinc-950">
-              Add
-            </button>
-          </form>
+          <AddExerciseForm action={addExercise} suggestions={exerciseSuggestions} />
         </section>
 
         {workout.exercises.length === 0 ? (
