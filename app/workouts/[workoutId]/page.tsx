@@ -6,10 +6,12 @@ import {
   deleteSetAction,
   finishWorkoutAction,
   removeWorkoutExerciseAction,
+  updateSetAction,
   updateWorkoutExerciseNameAction,
 } from "@/app/workouts/actions";
 import { AddExerciseForm, type ExerciseSuggestion } from "@/app/workouts/[workoutId]/add-exercise-form";
 import { ExerciseNameEditor } from "@/app/workouts/[workoutId]/exercise-name-editor";
+import { SetEntryEditor } from "@/app/workouts/[workoutId]/set-entry-editor";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -17,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 type WorkoutPageProps = {
   params: Promise<{ workoutId: string }>;
-  searchParams: Promise<{ focusExercise?: string | string[] }>;
+  searchParams: Promise<{ focusExercise?: string | string[]; finishError?: string | string[] }>;
 };
 
 function formatDate(date: Date) {
@@ -30,8 +32,12 @@ function formatDate(date: Date) {
   }).format(date);
 }
 
+function formatMetricValue(value: { toString(): string }) {
+  return value.toString().replace(/\.00$/, "");
+}
+
 function formatMetric(metric: { type: string; value: { toString(): string }; unit: string }) {
-  const value = metric.value.toString().replace(/\.00$/, "");
+  const value = formatMetricValue(metric.value);
 
   if (metric.type === "REPS") return `${value} reps`;
   if (metric.type === "WEIGHT") return `${value} ${metric.unit.toLowerCase()}`;
@@ -74,8 +80,12 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
   await requireUser();
 
   const { workoutId } = await params;
-  const focusedExercise = (await searchParams).focusExercise;
+  const resolvedSearchParams = await searchParams;
+  const focusedExercise = resolvedSearchParams.focusExercise;
   const focusedExerciseId = Array.isArray(focusedExercise) ? focusedExercise[0] : focusedExercise;
+  const finishError = Array.isArray(resolvedSearchParams.finishError)
+    ? resolvedSearchParams.finishError[0]
+    : resolvedSearchParams.finishError;
   const [workout, exerciseSuggestions] = await Promise.all([
     prisma.workout.findUnique({
       where: { id: workoutId },
@@ -100,6 +110,8 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
   }
 
   const isActiveWorkout = !workout.endedAt;
+  const canFinishWorkout = workout.exercises.length > 0 && workout.exercises.every((exercise) => exercise.sets.length > 0);
+  const showFinishError = isActiveWorkout && finishError === "missingEntries";
   const addExercise = addExerciseToWorkoutAction.bind(null, workout.id);
   const finishWorkout = finishWorkoutAction.bind(null, workout.id);
 
@@ -121,12 +133,26 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
 
             {isActiveWorkout ? (
               <form action={finishWorkout}>
-                <button className="rounded-full bg-lime-300 px-4 py-2 text-sm font-black text-zinc-950">
+                <button
+                  className="rounded-full bg-lime-300 px-4 py-2 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
+                  disabled={!canFinishWorkout}
+                >
                   Finish
                 </button>
               </form>
             ) : null}
           </div>
+
+          {isActiveWorkout && !canFinishWorkout ? (
+            <div className="mt-5 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4">
+              <p className="text-sm font-black text-amber-100">
+                {showFinishError ? "Workout not finished." : "Finish locked for now."}
+              </p>
+              <p className="mt-1 text-sm font-semibold text-amber-100/80">
+                Add at least one exercise and at least one entry for every exercise before finishing.
+              </p>
+            </div>
+          ) : null}
         </header>
 
         {isActiveWorkout ? (
@@ -147,7 +173,7 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
           <section className="rounded-3xl border border-dashed border-zinc-700 p-8 text-center">
             <p className="font-black text-zinc-200">No exercises yet.</p>
             <p className="mt-1 text-sm text-zinc-500">
-              {isActiveWorkout ? "Add your first movement above." : "This workout was completed without exercises."}
+              {isActiveWorkout ? "Add your first movement and log an entry before finishing." : "This workout has no exercises."}
             </p>
           </section>
         ) : (
@@ -155,12 +181,15 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
             const addSet = addSetAction.bind(null, workout.id, entry.id);
             const removeExercise = removeWorkoutExerciseAction.bind(null, workout.id, entry.id);
             const updateExerciseName = updateWorkoutExerciseNameAction.bind(null, workout.id, entry.id);
+            const needsEntry = isActiveWorkout && entry.sets.length === 0;
 
             return (
               <section
                 key={entry.id}
                 id={`exercise-${entry.id}`}
-                className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/10"
+                className={`rounded-3xl border bg-zinc-900 p-5 shadow-xl shadow-black/10 ${
+                  needsEntry ? "border-amber-300/50" : "border-zinc-800"
+                }`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -183,32 +212,38 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
                   ) : null}
                 </div>
 
+                {needsEntry ? (
+                  <p className="mt-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm font-semibold text-amber-100">
+                    Add at least one entry for this exercise before finishing.
+                  </p>
+                ) : null}
+
                 {entry.sets.length > 0 ? (
                   <div className="mt-5 space-y-2">
                     {entry.sets.map((set) => {
                       const deleteSet = deleteSetAction.bind(null, workout.id, set.id);
+                      const updateSet = updateSetAction.bind(null, workout.id, set.id);
+                      const summary = set.metrics.map(formatMetric).join(" · ");
 
-                      return (
-                        <div
+                      return isActiveWorkout ? (
+                        <SetEntryEditor
                           key={set.id}
-                          className="flex items-center justify-between gap-3 rounded-2xl bg-zinc-950 p-3"
-                        >
-                          <div>
-                            <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
-                              Set {set.order + 1}
-                            </p>
-                            <p className="mt-1 text-sm font-semibold text-zinc-200">
-                              {set.metrics.map(formatMetric).join(" · ")}
-                            </p>
-                          </div>
-
-                          {isActiveWorkout ? (
-                            <form action={deleteSet}>
-                              <button className="rounded-full bg-zinc-800 px-3 py-2 text-sm font-bold text-zinc-300">
-                                Remove
-                              </button>
-                            </form>
-                          ) : null}
+                          label={`Set ${set.order + 1}`}
+                          summary={summary}
+                          metrics={set.metrics.map((item) => ({
+                            type: item.type,
+                            unit: item.unit,
+                            value: formatMetricValue(item.value),
+                          }))}
+                          updateAction={updateSet}
+                          deleteAction={deleteSet}
+                        />
+                      ) : (
+                        <div key={set.id} className="rounded-2xl bg-zinc-950 p-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
+                            Set {set.order + 1}
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-zinc-200">{summary}</p>
                         </div>
                       );
                     })}

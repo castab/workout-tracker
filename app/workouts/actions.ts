@@ -26,6 +26,16 @@ function metricUnit(formData: FormData, key: string, fallback: MetricUnit) {
   return unit === "" ? fallback : (unit as MetricUnit);
 }
 
+function metricsFromFormData(formData: FormData) {
+  return [
+    { type: "REPS" as const, unit: "COUNT" as const, value: metricValue(formData, "reps") },
+    { type: "WEIGHT" as const, unit: metricUnit(formData, "weightUnit", "LB"), value: metricValue(formData, "weight") },
+    { type: "TIME" as const, unit: metricUnit(formData, "timeUnit", "MINUTES"), value: metricValue(formData, "time") },
+    { type: "DISTANCE" as const, unit: metricUnit(formData, "distanceUnit", "MILES"), value: metricValue(formData, "distance") },
+    { type: "LAPS" as const, unit: "LAPS" as const, value: metricValue(formData, "laps") },
+  ].filter((metric) => metric.value !== null) satisfies NewMetric[];
+}
+
 async function isActiveWorkout(workoutId: string) {
   const workout = await prisma.workout.findUnique({
     where: { id: workoutId },
@@ -44,6 +54,29 @@ export async function createWorkoutAction() {
 
 export async function finishWorkoutAction(workoutId: string) {
   await requireUser();
+
+  const workout = await prisma.workout.findUnique({
+    where: { id: workoutId },
+    select: {
+      endedAt: true,
+      exercises: {
+        select: {
+          sets: { select: { id: true } },
+        },
+      },
+    },
+  });
+
+  if (!workout || workout.endedAt) {
+    return;
+  }
+
+  const hasNoExercises = workout.exercises.length === 0;
+  const hasExerciseWithoutEntries = workout.exercises.some((exercise) => exercise.sets.length === 0);
+
+  if (hasNoExercises || hasExerciseWithoutEntries) {
+    redirect(`/workouts/${workoutId}?finishError=missingEntries`);
+  }
 
   await prisma.workout.updateMany({
     where: { id: workoutId, endedAt: null },
@@ -181,13 +214,7 @@ export async function addSetAction(workoutId: string, workoutExerciseId: string,
     return;
   }
 
-  const metrics: NewMetric[] = [
-    { type: "REPS" as const, unit: "COUNT" as const, value: metricValue(formData, "reps") },
-    { type: "WEIGHT" as const, unit: metricUnit(formData, "weightUnit", "LB"), value: metricValue(formData, "weight") },
-    { type: "TIME" as const, unit: metricUnit(formData, "timeUnit", "MINUTES"), value: metricValue(formData, "time") },
-    { type: "DISTANCE" as const, unit: metricUnit(formData, "distanceUnit", "MILES"), value: metricValue(formData, "distance") },
-    { type: "LAPS" as const, unit: "LAPS" as const, value: metricValue(formData, "laps") },
-  ].filter((metric) => metric.value !== null);
+  const metrics = metricsFromFormData(formData);
 
   if (metrics.length === 0) {
     return;
@@ -211,6 +238,46 @@ export async function addSetAction(workoutId: string, workoutExerciseId: string,
       },
     },
   });
+
+  revalidatePath(`/workouts/${workoutId}`);
+}
+
+export async function updateSetAction(workoutId: string, setId: string, formData: FormData) {
+  await requireUser();
+
+  const metrics = metricsFromFormData(formData);
+
+  if (metrics.length === 0) {
+    return;
+  }
+
+  const set = await prisma.exerciseSet.findUnique({
+    where: { id: setId },
+    include: {
+      workoutExercise: {
+        select: {
+          workoutId: true,
+          workout: { select: { endedAt: true } },
+        },
+      },
+    },
+  });
+
+  if (!set || set.workoutExercise.workoutId !== workoutId || set.workoutExercise.workout.endedAt) {
+    return;
+  }
+
+  await prisma.$transaction([
+    prisma.setMetric.deleteMany({ where: { setId } }),
+    prisma.setMetric.createMany({
+      data: metrics.map((metric) => ({
+        setId,
+        type: metric.type,
+        unit: metric.unit,
+        value: metric.value!,
+      })),
+    }),
+  ]);
 
   revalidatePath(`/workouts/${workoutId}`);
 }
