@@ -2,14 +2,24 @@
 
 A mobile-first, single-user workout tracker for replacing a paper gym notebook. The app tracks workouts, exercises, sets, and flexible metrics such as reps, weight, time, distance, and laps.
 
+## Current App
+
+- Password-protected single-user login.
+- Recent workout list with one-tap workout creation.
+- Active workout screen for adding exercises and quick set entries.
+- Exercise suggestions based on the last 90 days of workout history.
+- Editable exercise names and set metrics while a workout is active.
+- Completed workouts are read-only.
+- Workouts cannot be finished until every exercise has at least one set.
+
 ## Stack
 
-- Next.js
-- React
+- Next.js 16 App Router
+- React 19
 - TypeScript
-- Tailwind CSS
-- HyperUI-inspired UI components
-- Prisma
+- Tailwind CSS 4
+- HyperUI-inspired copied Tailwind patterns
+- Prisma 7
 - PostgreSQL 18
 - Docker Compose
 
@@ -25,6 +35,13 @@ This project uses a checked-in `.env.development` for local development defaults
 
 `npm run dev` starts the local PostgreSQL 18 container before starting Next.js.
 
+Development login defaults after seeding:
+
+```text
+Email: admin@example.com
+Password: password
+```
+
 ## Getting Started
 
 1. Install dependencies.
@@ -39,7 +56,14 @@ npm install
 npm run dev
 ```
 
-3. Open the app.
+3. In a second terminal, run the initial database migration and seed the first user if needed.
+
+```bash
+npm run prisma:migrate
+npm run db:seed
+```
+
+4. Open the app.
 
 ```text
 http://localhost:3000
@@ -60,6 +84,8 @@ npm run prisma:studio
 npm run db:seed
 ```
 
+`npm run prisma:generate` writes the generated Prisma client to `lib/generated/prisma` as configured in `prisma/schema.prisma`.
+
 ## Authentication
 
 The app is single-user and password protected.
@@ -77,7 +103,15 @@ For development, `.env.development` contains safe defaults. Production deploymen
 
 The app uses a flexible metric model rather than fixed set fields.
 
-A workout contains exercises. Exercises contain sets. Sets contain one or more metrics.
+A workout contains ordered workout exercise entries. Each entry points at a reusable exercise name and contains ordered sets. Each set contains one or more metrics.
+
+Supported metric types and units are defined in `prisma/schema.prisma`:
+
+- `REPS` with `COUNT`
+- `WEIGHT` with `LB` or `KG`
+- `TIME` with `SECONDS` or `MINUTES`
+- `DISTANCE` with `METERS`, `KM`, or `MILES`
+- `LAPS` with `LAPS`
 
 Example metric combinations:
 
@@ -92,6 +126,17 @@ Example metric combinations:
 The app is mobile-first because it is primarily used during workouts at the gym. UI patterns should prioritize fast data entry, large tap targets, and low-friction editing.
 
 HyperUI is used as design inspiration through copied Tailwind patterns, not as an installed UI package.
+
+## Code Layout
+
+- `app/page.tsx` lists recent workouts and starts new workouts.
+- `app/login` contains the sign-in page and login/logout server actions.
+- `app/workouts/actions.ts` contains workout, exercise, and set server actions.
+- `app/workouts/[workoutId]` contains the active/completed workout screen and its client-side editors.
+- `lib/auth.ts` manages DB-backed sessions and the HTTP-only session cookie.
+- `lib/prisma.ts` creates the Prisma client using `@prisma/adapter-pg`.
+- `prisma/schema.prisma` contains the PostgreSQL data model.
+- `prisma/seed.ts` creates or updates the initial user from environment variables.
 
 ## Project History
 
