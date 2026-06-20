@@ -21,8 +21,9 @@ function WorkoutDate({ date }: { date: Date }) {
 }
 
 export default async function Home() {
-  await requireUser();
+  const user = await requireUser();
   const workouts = await prisma.workout.findMany({
+    where: { userId: user.id },
     orderBy: { startedAt: "desc" },
     take: 8,
     include: {
@@ -47,6 +48,7 @@ export default async function Home() {
                 Ready to train?
               </h1>
               <p className="mt-2 text-sm text-zinc-400">Password-protected access.</p>
+              <p className="mt-1 text-sm font-semibold text-zinc-300">Signed in as {user.username}</p>
             </div>
 
             <div className="flex items-center gap-2">

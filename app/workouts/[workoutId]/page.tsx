@@ -51,7 +51,7 @@ type ExerciseSuggestionRow = {
   lastUsedAt: Date;
 };
 
-async function getExerciseSuggestions(): Promise<ExerciseSuggestion[]> {
+async function getExerciseSuggestions(userId: string): Promise<ExerciseSuggestion[]> {
   const suggestions = await prisma.$queryRaw<ExerciseSuggestionRow[]>`
     SELECT
       e.id,
@@ -60,7 +60,9 @@ async function getExerciseSuggestions(): Promise<ExerciseSuggestion[]> {
       MAX(we."createdAt") AS "lastUsedAt"
     FROM "WorkoutExercise" we
     JOIN "Exercise" e ON e.id = we."exerciseId"
+    JOIN "Workout" w ON w.id = we."workoutId"
     WHERE we."createdAt" >= NOW() - INTERVAL '90 days'
+      AND w."userId" = ${userId}
     GROUP BY e.id, e.name
     ORDER BY COUNT(*) DESC, MAX(we."createdAt") DESC, e.name ASC
     LIMIT 50
@@ -73,7 +75,7 @@ async function getExerciseSuggestions(): Promise<ExerciseSuggestion[]> {
 }
 
 export default async function WorkoutPage({ params, searchParams }: WorkoutPageProps) {
-  await requireUser();
+  const user = await requireUser();
 
   const { workoutId } = await params;
   const resolvedSearchParams = await searchParams;
@@ -98,10 +100,10 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
         },
       },
     }),
-    getExerciseSuggestions(),
+    getExerciseSuggestions(user.id),
   ]);
 
-  if (!workout) {
+  if (!workout || workout.userId !== user.id) {
     notFound();
   }
 

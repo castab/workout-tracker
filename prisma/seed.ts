@@ -14,10 +14,21 @@ const adapter = new PrismaPg({ connectionString: databaseUrl });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
+  const existingAdmin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
+
+  if (existingAdmin) {
+    console.log("Admin user already exists; seed skipped.");
+    return;
+  }
+
   const existingUser = await prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
 
   if (existingUser) {
-    console.log("Auth user already exists; seed skipped.");
+    await prisma.user.update({
+      where: { id: existingUser.id },
+      data: { role: "ADMIN" },
+    });
+    console.log(`Promoted initial admin user: ${existingUser.username}`);
     return;
   }
 
@@ -26,7 +37,8 @@ async function main() {
 
   await prisma.user.create({
     data: {
-      id: "auth-user",
+      username: "admin",
+      role: "ADMIN",
       passwordHash,
     },
   });

@@ -14,11 +14,20 @@ export function hashSessionToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export async function ensureAuthUser() {
+export async function ensureInitialAdminUser() {
+  const existingAdmin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
+
+  if (existingAdmin) {
+    return existingAdmin;
+  }
+
   const existingUser = await prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
 
   if (existingUser) {
-    return existingUser;
+    return prisma.user.update({
+      where: { id: existingUser.id },
+      data: { role: "ADMIN" },
+    });
   }
 
   const password = randomBytes(32).toString("base64url");
@@ -27,7 +36,8 @@ export async function ensureAuthUser() {
   try {
     const user = await prisma.user.create({
       data: {
-        id: "auth-user",
+        username: "admin",
+        role: "ADMIN",
         passwordHash,
       },
     });
@@ -36,7 +46,7 @@ export async function ensureAuthUser() {
 
     return user;
   } catch (error) {
-    const user = await prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
+    const user = await prisma.user.findFirst({ where: { role: "ADMIN" } });
 
     if (user) {
       return user;
@@ -107,6 +117,16 @@ export async function requireUser() {
 
   if (!user) {
     redirect("/login");
+  }
+
+  return user;
+}
+
+export async function requireAdmin() {
+  const user = await requireUser();
+
+  if (user.role !== "ADMIN") {
+    redirect("/settings?error=admin");
   }
 
   return user;

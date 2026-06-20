@@ -6,7 +6,7 @@ import type { WorkoutSnapshot } from "@/lib/workout-sync-types";
 
 type WorkoutRow = NonNullable<Awaited<ReturnType<typeof getWorkoutRow>>>;
 
-async function getWorkoutRow(workoutId: string) {
+async function getWorkoutRow(workoutId: string, userId?: string) {
   return prisma.workout.findUnique({
     where: { id: workoutId },
     include: {
@@ -21,7 +21,7 @@ async function getWorkoutRow(workoutId: string) {
         },
       },
     },
-  });
+  }).then((workout) => (workout && (!userId || workout.userId === userId) ? workout : null));
 }
 
 export function serializeWorkoutSnapshot(workout: WorkoutRow): WorkoutSnapshot {
@@ -46,8 +46,8 @@ export function serializeWorkoutSnapshot(workout: WorkoutRow): WorkoutSnapshot {
   };
 }
 
-export async function getWorkoutSnapshot(workoutId: string) {
-  const workout = await getWorkoutRow(workoutId);
+export async function getWorkoutSnapshot(workoutId: string, userId?: string) {
+  const workout = await getWorkoutRow(workoutId, userId);
 
   if (!workout) {
     notFound();

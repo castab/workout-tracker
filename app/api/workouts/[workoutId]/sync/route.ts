@@ -17,29 +17,29 @@ function metricData(setId: string, metrics: OfflineMetric[]) {
   }));
 }
 
-async function activeWorkoutExists(workoutId: string) {
+async function activeWorkoutExists(workoutId: string, userId: string) {
   const workout = await prisma.workout.findUnique({
     where: { id: workoutId },
-    select: { endedAt: true },
+    select: { endedAt: true, userId: true },
   });
 
-  return workout?.endedAt === null;
+  return workout?.userId === userId && workout.endedAt === null;
 }
 
 export async function POST(request: Request, context: RouteContext) {
-  await requireUser();
+  const user = await requireUser();
 
   const { workoutId } = await context.params;
   const body = (await request.json()) as { operations?: OfflineWorkoutOperation[] };
   const operations = body.operations ?? [];
   const idMap = new Map<string, string>();
 
-  if (!(await activeWorkoutExists(workoutId))) {
-    return NextResponse.json({ snapshot: await getWorkoutSnapshot(workoutId) });
+  if (!(await activeWorkoutExists(workoutId, user.id))) {
+    return NextResponse.json({ snapshot: await getWorkoutSnapshot(workoutId, user.id) });
   }
 
   for (const operation of operations) {
-    if (!(await activeWorkoutExists(workoutId))) {
+    if (!(await activeWorkoutExists(workoutId, user.id))) {
       break;
     }
 
@@ -156,18 +156,18 @@ export async function POST(request: Request, context: RouteContext) {
     if (operation.type === "finishWorkout") {
       const workout = await prisma.workout.findUnique({
         where: { id: workoutId },
-        select: { exercises: { select: { sets: { select: { id: true } } } } },
+        select: { userId: true, exercises: { select: { sets: { select: { id: true } } } } },
       });
-      const canFinish = workout && workout.exercises.length > 0 && workout.exercises.every((exercise) => exercise.sets.length > 0);
+      const canFinish = workout?.userId === user.id && workout.exercises.length > 0 && workout.exercises.every((exercise) => exercise.sets.length > 0);
 
       if (canFinish) {
         await prisma.workout.updateMany({
-          where: { id: workoutId, endedAt: null },
+          where: { id: workoutId, userId: user.id, endedAt: null },
           data: { endedAt: new Date() },
         });
       }
     }
   }
 
-  return NextResponse.json({ snapshot: await getWorkoutSnapshot(workoutId) });
+  return NextResponse.json({ snapshot: await getWorkoutSnapshot(workoutId, user.id) });
 }
