@@ -6,6 +6,8 @@
   "scripts": {
     "predev": "dotenv -e .env.development -- tsx scripts/start-postgres.ts",
     "dev": "next dev",
+    "prepwa:dev": "dotenv -e .env.development -- tsx scripts/start-postgres.ts",
+    "pwa:dev": "dotenv -e .env.development -e .env.pwa.development -- next dev --experimental-https",
     "prebuild": "prisma generate",
     "build": "next build",
     "start": "next start",

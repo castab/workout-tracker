@@ -35,6 +35,8 @@ This project uses a checked-in `.env.development` for local development defaults
 
 `npm run dev` starts the local PostgreSQL 18 container before starting Next.js.
 
+Use `npm run pwa:dev` when testing installability, service worker behavior, or offline sync locally. It starts the same database container, enables service worker registration, and runs Next.js with `--experimental-https` at `https://localhost:3000`.
+
 On first setup, the app creates the password holder automatically and prints a strong initial password in the server logs. The password is only logged when no auth user exists.
 
 ## Getting Started
@@ -72,6 +74,7 @@ Useful commands:
 ```bash
 npm run db:up
 npm run db:down
+npm run pwa:dev
 npm run prisma:migrate
 npm run prisma:generate
 npm run prisma:studio
@@ -116,14 +119,25 @@ The app is mobile-first because it is primarily used during workouts at the gym.
 
 HyperUI is used as design inspiration through copied Tailwind patterns, not as an installed UI package.
 
-## PWA Roadmap
+## PWA Support
 
-Current support: installable app shell with an offline fallback page. The service worker caches static assets conservatively and does not cache authenticated workout data or queue offline edits.
+The app is installable as a PWA and includes offline support for gym dead zones.
 
-Future:
+- The web app manifest, icons, theme color, and service worker make the app installable from supported browsers.
+- Recently visited same-origin pages are cached with a network-first strategy, so previously opened workout pages can be viewed offline.
+- Active workout edits use an IndexedDB-backed mutation queue for add/edit/delete set and exercise changes while offline.
+- Queued workout changes sync back to Postgres through `/api/workouts/[workoutId]/sync` when connectivity returns.
+- Offline sync is intentionally scoped to active workout entry. Login, password changes, and first-time auth bootstrap still require the server.
+- Logging out or changing the password redirects to `/login`, where the client asks the service worker to clear cached authenticated pages.
 
-- Phase 2: read-only offline access to recently visited workouts.
-- Phase 3: offline workout entry with IndexedDB-backed mutation queue and sync.
+Operational notes:
+
+- Install from a production HTTPS deployment for the best Android/iOS PWA behavior.
+- For local PWA testing, use `npm run pwa:dev` and open `https://localhost:3000` so browser PWA APIs run in a secure context.
+- Normal `npm run dev` does not register the service worker; this avoids stale development caches while working on non-PWA features.
+- If a browser keeps an old service worker, close all app tabs and reopen the installed app after deploying a new service worker version.
+- If sync fails, queued changes remain in IndexedDB and retry when the app is online again.
+- Push notifications are intentionally not implemented; the app does not request notification permission or require VAPID keys.
 
 ## Code Layout
 
