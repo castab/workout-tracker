@@ -36,28 +36,29 @@ function metricsFromFormData(formData: FormData) {
   ].filter((metric) => metric.value !== null) satisfies NewMetric[];
 }
 
-async function isActiveWorkout(workoutId: string) {
+async function isActiveWorkout(workoutId: string, userId: string) {
   const workout = await prisma.workout.findUnique({
     where: { id: workoutId },
-    select: { endedAt: true },
+    select: { endedAt: true, userId: true },
   });
 
-  return workout?.endedAt === null;
+  return workout?.userId === userId && workout.endedAt === null;
 }
 
 export async function createWorkoutAction() {
-  await requireUser();
+  const user = await requireUser();
 
-  const workout = await prisma.workout.create({ data: {} });
+  const workout = await prisma.workout.create({ data: { userId: user.id } });
   redirect(`/workouts/${workout.id}`);
 }
 
 export async function finishWorkoutAction(workoutId: string) {
-  await requireUser();
+  const user = await requireUser();
 
   const workout = await prisma.workout.findUnique({
     where: { id: workoutId },
     select: {
+      userId: true,
       endedAt: true,
       exercises: {
         select: {
@@ -67,7 +68,7 @@ export async function finishWorkoutAction(workoutId: string) {
     },
   });
 
-  if (!workout || workout.endedAt) {
+  if (!workout || workout.userId !== user.id || workout.endedAt) {
     return;
   }
 
@@ -79,7 +80,7 @@ export async function finishWorkoutAction(workoutId: string) {
   }
 
   await prisma.workout.updateMany({
-    where: { id: workoutId, endedAt: null },
+    where: { id: workoutId, userId: user.id, endedAt: null },
     data: { endedAt: new Date() },
   });
 
@@ -91,9 +92,9 @@ export async function addExerciseToWorkoutAction(
   workoutId: string,
   formData: FormData,
 ) {
-  await requireUser();
+  const user = await requireUser();
 
-  if (!(await isActiveWorkout(workoutId))) {
+  if (!(await isActiveWorkout(workoutId, user.id))) {
     return;
   }
 
@@ -130,14 +131,14 @@ export async function removeWorkoutExerciseAction(
   workoutId: string,
   workoutExerciseId: string,
 ) {
-  await requireUser();
+  const user = await requireUser();
 
   const workoutExercise = await prisma.workoutExercise.findUnique({
     where: { id: workoutExerciseId },
-    include: { workout: { select: { endedAt: true } } },
+    include: { workout: { select: { endedAt: true, userId: true } } },
   });
 
-  if (!workoutExercise || workoutExercise.workoutId !== workoutId || workoutExercise.workout.endedAt) {
+  if (!workoutExercise || workoutExercise.workoutId !== workoutId || workoutExercise.workout.userId !== user.id || workoutExercise.workout.endedAt) {
     return;
   }
 
@@ -151,7 +152,7 @@ export async function updateWorkoutExerciseNameAction(
   workoutExerciseId: string,
   formData: FormData,
 ) {
-  await requireUser();
+  const user = await requireUser();
 
   const name = textValue(formData, "name");
 
@@ -161,10 +162,10 @@ export async function updateWorkoutExerciseNameAction(
 
   const workoutExercise = await prisma.workoutExercise.findUnique({
     where: { id: workoutExerciseId },
-    include: { exercise: true, workout: { select: { endedAt: true } } },
+    include: { exercise: true, workout: { select: { endedAt: true, userId: true } } },
   });
 
-  if (!workoutExercise || workoutExercise.workoutId !== workoutId || workoutExercise.workout.endedAt) {
+  if (!workoutExercise || workoutExercise.workoutId !== workoutId || workoutExercise.workout.userId !== user.id || workoutExercise.workout.endedAt) {
     return;
   }
 
@@ -203,14 +204,14 @@ export async function updateWorkoutExerciseNameAction(
 }
 
 export async function addSetAction(workoutId: string, workoutExerciseId: string, formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
 
   const workoutExercise = await prisma.workoutExercise.findUnique({
     where: { id: workoutExerciseId },
-    include: { workout: { select: { endedAt: true } } },
+    include: { workout: { select: { endedAt: true, userId: true } } },
   });
 
-  if (!workoutExercise || workoutExercise.workoutId !== workoutId || workoutExercise.workout.endedAt) {
+  if (!workoutExercise || workoutExercise.workoutId !== workoutId || workoutExercise.workout.userId !== user.id || workoutExercise.workout.endedAt) {
     return;
   }
 
@@ -244,7 +245,7 @@ export async function addSetAction(workoutId: string, workoutExerciseId: string,
 }
 
 export async function updateSetAction(workoutId: string, setId: string, formData: FormData) {
-  await requireUser();
+  const user = await requireUser();
 
   const metrics = metricsFromFormData(formData);
 
@@ -258,13 +259,13 @@ export async function updateSetAction(workoutId: string, setId: string, formData
       workoutExercise: {
         select: {
           workoutId: true,
-          workout: { select: { endedAt: true } },
+          workout: { select: { endedAt: true, userId: true } },
         },
       },
     },
   });
 
-  if (!set || set.workoutExercise.workoutId !== workoutId || set.workoutExercise.workout.endedAt) {
+  if (!set || set.workoutExercise.workoutId !== workoutId || set.workoutExercise.workout.userId !== user.id || set.workoutExercise.workout.endedAt) {
     return;
   }
 
@@ -284,7 +285,7 @@ export async function updateSetAction(workoutId: string, setId: string, formData
 }
 
 export async function deleteSetAction(workoutId: string, setId: string) {
-  await requireUser();
+  const user = await requireUser();
 
   const set = await prisma.exerciseSet.findUnique({
     where: { id: setId },
@@ -292,13 +293,13 @@ export async function deleteSetAction(workoutId: string, setId: string) {
       workoutExercise: {
         select: {
           workoutId: true,
-          workout: { select: { endedAt: true } },
+          workout: { select: { endedAt: true, userId: true } },
         },
       },
     },
   });
 
-  if (!set || set.workoutExercise.workoutId !== workoutId || set.workoutExercise.workout.endedAt) {
+  if (!set || set.workoutExercise.workoutId !== workoutId || set.workoutExercise.workout.userId !== user.id || set.workoutExercise.workout.endedAt) {
     return;
   }
 
