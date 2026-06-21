@@ -91,7 +91,11 @@ export function SetEntryEditor({ label, summary, metrics, updateAction, deleteAc
             </select>
           </div>
           <input className="metric-input" name="laps" inputMode="decimal" placeholder="Laps" defaultValue={laps?.value ?? ""} />
-          <button className="h-12 rounded-xl bg-lime-300 px-4 font-black text-zinc-950 disabled:opacity-60" disabled={isSaving}>
+          <button
+            className="h-12 rounded-xl bg-lime-300 px-4 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30 disabled:opacity-60 disabled:hover:bg-lime-300"
+            aria-label={`Save ${label}`}
+            disabled={isSaving}
+          >
             Save
           </button>
         </div>

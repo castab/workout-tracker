@@ -216,7 +216,12 @@ function MetricFields({ metrics = [], autoFocus = false }: { metrics?: OfflineMe
         </select>
       </div>
       <input className="metric-input" name="laps" inputMode="decimal" placeholder="Laps" defaultValue={laps?.value ?? ""} />
-      <button className="h-12 rounded-xl bg-lime-300 px-4 font-black text-zinc-950">Save</button>
+      <button
+        className="h-12 rounded-xl bg-lime-300 px-4 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
+        aria-label="Save set"
+      >
+        Save
+      </button>
     </div>
   );
 }
@@ -335,7 +340,8 @@ export function OfflineWorkoutClient({ initialSnapshot, suggestions, focusedExer
 
             {!snapshot.endedAt ? (
               <button
-                className="rounded-full bg-lime-300 px-4 py-2 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
+                className="rounded-full bg-lime-300 px-4 py-2 text-sm font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400 disabled:hover:bg-zinc-700"
+                aria-label="Finish workout"
                 disabled={!canFinishWorkout}
                 onClick={() => void queue(operation("finishWorkout", {}))}
               >
@@ -377,7 +383,12 @@ export function OfflineWorkoutClient({ initialSnapshot, suggestions, focusedExer
             >
               <div className="flex gap-2">
                 <input className="h-14 min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20" name="name" placeholder="Bench Press" autoComplete="off" required />
-                <button className="h-14 rounded-2xl bg-lime-300 px-5 font-black text-zinc-950">Add</button>
+                <button
+                  className="h-14 rounded-2xl bg-lime-300 px-5 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
+                  aria-label="Add exercise"
+                >
+                  Add
+                </button>
               </div>
               {suggestions.length > 0 ? (
                 <p className="text-xs text-zinc-500">Suggestions remain available from the last online load.</p>
@@ -414,13 +425,26 @@ export function OfflineWorkoutClient({ initialSnapshot, suggestions, focusedExer
                       }}
                     >
                       <input className="h-12 min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base font-black outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20" name="name" defaultValue={entry.exercise.name} autoComplete="off" required />
-                      <button className="h-12 rounded-2xl bg-lime-300 px-4 font-black text-zinc-950">Save</button>
+                      <button
+                        className="h-12 rounded-2xl bg-lime-300 px-4 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
+                        aria-label={`Save ${entry.exercise.name} name`}
+                      >
+                        Save
+                      </button>
                     </form>
                   ) : (
                     <div className="mt-2 flex items-center gap-2">
                       <h2 className="text-2xl font-black">{entry.exercise.name}</h2>
                       {!snapshot.endedAt ? (
-                        <button type="button" className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-zinc-700 text-zinc-400" aria-label={`Edit ${entry.exercise.name} name`} onClick={() => setEditingExerciseId(entry.id)}><PencilIcon /></button>
+                        <button
+                          type="button"
+                          className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-zinc-700 text-zinc-400 transition hover:border-lime-300 hover:text-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/20"
+                          aria-label={`Edit ${entry.exercise.name} name`}
+                          title={`Edit ${entry.exercise.name} name`}
+                          onClick={() => setEditingExerciseId(entry.id)}
+                        >
+                          <PencilIcon />
+                        </button>
                       ) : null}
                     </div>
                   )}

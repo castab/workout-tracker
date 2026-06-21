@@ -34,7 +34,8 @@ export function ExerciseNameEditor({ name, action }: ExerciseNameEditorProps) {
             required
           />
           <button
-            className="h-12 rounded-2xl bg-lime-300 px-4 font-black text-zinc-950 disabled:opacity-60"
+            className="h-12 rounded-2xl bg-lime-300 px-4 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30 disabled:opacity-60 disabled:hover:bg-lime-300"
+            aria-label={`Save ${name} name`}
             disabled={isSaving}
           >
             Save
@@ -47,6 +48,7 @@ export function ExerciseNameEditor({ name, action }: ExerciseNameEditorProps) {
             type="button"
             className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-zinc-700 text-zinc-400 transition hover:border-lime-300 hover:text-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/20"
             aria-label={`Edit ${name} name`}
+            title={`Edit ${name} name`}
             onClick={() => {
               setIsEditing(true);
               requestAnimationFrame(() => inputRef.current?.focus());
