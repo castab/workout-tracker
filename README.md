@@ -33,6 +33,13 @@ A mobile-first, single-user workout tracker for replacing a paper gym notebook. 
 
 This project uses a checked-in `.env.development` for local development defaults. These values are intentionally non-production credentials for the local Docker database.
 
+Database connection variables are split by purpose:
+
+- `POSTGRES_PRISMA_URL` is used by the running app for normal database operations.
+- `POSTGRES_URL_NON_POOLING` is used by Prisma migrations.
+
+For local development, both variables point at the same Docker Postgres database.
+
 `npm run dev` starts the local PostgreSQL 18 container before starting Next.js.
 
 Use `npm run pwa:dev` when testing installability, service worker behavior, or offline sync locally. It starts the same database container, enables service worker registration, and runs Next.js with `--experimental-https` at `https://localhost:3000`.
@@ -68,6 +75,8 @@ http://localhost:3000
 ## Database
 
 The development database runs in Docker using PostgreSQL 18.
+
+Prisma migrations use `POSTGRES_URL_NON_POOLING`; the app runtime and seed script use `POSTGRES_PRISMA_URL`.
 
 Useful commands:
 
