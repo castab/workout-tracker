@@ -1,5 +1,12 @@
 "use client";
 
+import AddIcon from "@mui/icons-material/Add";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import { useRef, useState } from "react";
 
 export type ExerciseSuggestion = {
@@ -49,34 +56,36 @@ export function AddExerciseForm({ action, suggestions }: AddExerciseFormProps) {
     : [];
 
   return (
-    <form ref={formRef} action={action} className="mt-4 space-y-3">
-      <div className="flex gap-2">
-        <input
-          ref={inputRef}
-          className="h-14 min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
+    <Stack ref={formRef} component="form" action={action} spacing={1.5} sx={{ mt: 2 }}>
+      <Stack direction="row" spacing={1}>
+        <TextField
+          inputRef={inputRef}
           name="name"
           placeholder="Bench Press"
           autoComplete="off"
           value={name}
           onChange={(event) => setName(event.target.value)}
           required
+          fullWidth
         />
-        <button className="h-14 rounded-2xl bg-lime-300 px-5 font-black text-zinc-950">
+        <Button type="submit" variant="contained" startIcon={<AddIcon />}>
           Add
-        </button>
-      </div>
+        </Button>
+      </Stack>
 
       {matches.length > 0 ? (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-2">
-          <p className="px-2 pb-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
-            Suggestions
-          </p>
-          <div className="space-y-1">
+        <Card variant="outlined" sx={{ bgcolor: "background.default" }}>
+          <CardContent sx={{ p: 1, "&:last-child": { pb: 1 } }}>
+            <Typography variant="overline" color="text.secondary" sx={{ px: 1, pb: 1, display: "block", fontWeight: 800, letterSpacing: "0.2em" }}>
+              Suggestions
+            </Typography>
+            <Stack spacing={0.5}>
             {matches.map((suggestion) => (
-              <button
+              <Button
                 key={suggestion.id}
                 type="button"
-                className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl px-3 text-left transition hover:bg-zinc-900 focus:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-lime-300/20"
+                color="inherit"
+                sx={{ minHeight: 56, justifyContent: "space-between", px: 1.5, textAlign: "left" }}
                 onClick={() => {
                   setName(suggestion.name);
 
@@ -87,15 +96,16 @@ export function AddExerciseForm({ action, suggestions }: AddExerciseFormProps) {
                   formRef.current?.requestSubmit();
                 }}
               >
-                <span className="font-bold text-zinc-100">{suggestion.name}</span>
-                <span className="shrink-0 text-xs font-semibold text-zinc-500">
+                <Typography component="span" sx={{ fontWeight: 800 }}>{suggestion.name}</Typography>
+                <Typography component="span" variant="caption" color="text.secondary" sx={{ flexShrink: 0, fontWeight: 700 }}>
                   Used {suggestion.usageCount}x - {formatLastUsed(suggestion.lastUsedAt)}
-                </span>
-              </button>
+                </Typography>
+              </Button>
             ))}
-          </div>
-        </div>
+            </Stack>
+          </CardContent>
+        </Card>
       ) : null}
-    </form>
+    </Stack>
   );
 }

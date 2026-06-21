@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
+import { AppRouterCacheProvider } from "@mui/material-nextjs/v16-appRouter";
+import CssBaseline from "@mui/material/CssBaseline";
+import { ThemeProvider } from "@mui/material/styles";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ServiceWorkerRegistration } from "./service-worker-registration";
+import { theme } from "./theme";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -48,8 +52,13 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {children}
-        <ServiceWorkerRegistration />
+        <AppRouterCacheProvider options={{ enableCssLayer: true }}>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            {children}
+            <ServiceWorkerRegistration />
+          </ThemeProvider>
+        </AppRouterCacheProvider>
       </body>
     </html>
   );

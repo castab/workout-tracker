@@ -18,7 +18,7 @@ A mobile-first, single-user workout tracker for replacing a paper gym notebook. 
 - React 19
 - TypeScript
 - Tailwind CSS 4
-- HyperUI-inspired copied Tailwind patterns
+- Material UI and MUI Icons
 - Prisma 7
 - PostgreSQL 18
 - Docker Compose
@@ -126,7 +126,7 @@ Example metric combinations:
 
 The app is mobile-first because it is primarily used during workouts at the gym. UI patterns should prioritize fast data entry, large tap targets, and low-friction editing.
 
-HyperUI is used as design inspiration through copied Tailwind patterns, not as an installed UI package.
+Material UI and MUI Icons are the component and icon system. The theme keeps the app's dark zinc surfaces, lime accent color, rounded cards, and high-contrast gym-use identity.
 
 ## PWA Support
 

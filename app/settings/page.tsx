@@ -1,4 +1,15 @@
-import Link from "next/link";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
+import Container from "@mui/material/Container";
+import Divider from "@mui/material/Divider";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { minimumPasswordLength } from "@/lib/users";
@@ -47,184 +58,112 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   const statusMessage = status ? statusMessages[status] : null;
 
   return (
-    <main className="min-h-screen bg-zinc-950 px-4 py-5 text-zinc-50">
-      <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
-        <header className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/20">
-          <Link
-            href="/"
-            className="text-sm font-bold text-lime-300 transition hover:text-lime-200"
-          >
-            Back to workouts
-          </Link>
-          <h1 className="mt-4 text-3xl font-black tracking-tight">Settings</h1>
-          <p className="mt-2 text-sm leading-6 text-zinc-400">
-            Manage your account and password.
-          </p>
-        </header>
+    <Box component="main" sx={{ minHeight: "100vh", bgcolor: "background.default", py: 2.5 }}>
+      <Container maxWidth="sm" disableGutters sx={{ px: 2 }}>
+        <Stack spacing={2.5}>
+          <Card component="header">
+            <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+              <Button href="/" startIcon={<ArrowBackIcon />} sx={{ px: 0 }}>
+                Back to workouts
+              </Button>
+              <Typography variant="h4" component="h1" sx={{ mt: 2 }}>
+                Settings
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1, lineHeight: 1.7 }}>
+                Manage your account and password.
+              </Typography>
+            </CardContent>
+          </Card>
 
-        {statusMessage ? (
-          <div className="rounded-2xl border border-lime-300/30 bg-lime-300/10 px-4 py-3 text-sm text-lime-100">
-            {statusMessage}
-          </div>
-        ) : null}
+          {statusMessage ? <Alert severity="success">{statusMessage}</Alert> : null}
+          {message ? <Alert severity="error">{message}</Alert> : null}
 
-        {message ? (
-          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
-            {message}
-          </div>
-        ) : null}
+          <Card component="section">
+            <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+              <Typography variant="h6" component="h2">Account</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontWeight: 700 }}>
+                Signed in as {user.username}. Role: {user.role.toLowerCase()}.
+              </Typography>
+              <Stack component="form" action={updateOwnUsernameAction} spacing={2} sx={{ mt: 2.5 }}>
+                <TextField name="username" label="Username" type="text" autoCapitalize="none" autoComplete="username" defaultValue={user.username} required fullWidth />
+                <Button type="submit" variant="contained" color="secondary" size="large" fullWidth sx={{ minHeight: 56 }}>
+                  Save username
+                </Button>
+              </Stack>
+            </CardContent>
+          </Card>
 
-        <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
-          <h2 className="text-xl font-black">Account</h2>
-          <p className="mt-2 text-sm font-semibold text-zinc-400">
-            Signed in as {user.username}. Role: {user.role.toLowerCase()}.
-          </p>
+          <Card component="section">
+            <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+              <Typography variant="h6" component="h2">Password</Typography>
+              <Stack component="form" action={changePasswordAction} spacing={2} sx={{ mt: 2.5 }}>
+                <TextField name="currentPassword" label="Current password" type="password" autoComplete="current-password" required fullWidth />
+                <TextField name="newPassword" label="New password" type="password" autoComplete="new-password" required fullWidth slotProps={{ htmlInput: { minLength: minimumPasswordLength } }} />
+                <TextField name="confirmPassword" label="Confirm new password" type="password" autoComplete="new-password" required fullWidth slotProps={{ htmlInput: { minLength: minimumPasswordLength } }} />
+                <Button type="submit" variant="contained" size="large" fullWidth sx={{ minHeight: 56 }}>
+                  Change password
+                </Button>
+              </Stack>
+            </CardContent>
+          </Card>
 
-          <form action={updateOwnUsernameAction} className="mt-5 space-y-4">
-            <label className="block">
-              <span className="text-sm font-semibold text-zinc-200">Username</span>
-              <input
-                className="mt-2 h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base text-zinc-50 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
-                name="username"
-                type="text"
-                autoCapitalize="none"
-                autoComplete="username"
-                defaultValue={user.username}
-                required
-              />
-            </label>
+          {user.role === "ADMIN" ? (
+            <Card component="section">
+              <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+                <Typography variant="h6" component="h2">Users</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontWeight: 700 }}>
+                  Create users, rename accounts, and transfer the single admin role.
+                </Typography>
 
-            <button className="h-14 w-full rounded-2xl bg-zinc-50 px-5 text-base font-black text-zinc-950 transition hover:bg-white">
-              Save username
-            </button>
-          </form>
-        </section>
+                <Card variant="outlined" sx={{ mt: 2.5, bgcolor: "background.default" }}>
+                  <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                    <Typography sx={{ fontWeight: 900, mb: 2 }}>Create user</Typography>
+                    <Stack component="form" action={createUserAction} spacing={2}>
+                      <TextField name="username" label="Username" type="text" autoCapitalize="none" autoComplete="off" required fullWidth />
+                      <TextField name="password" label="Initial password" type="password" autoComplete="new-password" required fullWidth slotProps={{ htmlInput: { minLength: minimumPasswordLength } }} />
+                      <Button type="submit" variant="contained" size="large" fullWidth sx={{ minHeight: 56 }}>
+                        Create user
+                      </Button>
+                    </Stack>
+                  </CardContent>
+                </Card>
 
-        <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
-          <h2 className="text-xl font-black">Password</h2>
+                <Stack spacing={1.5} sx={{ mt: 2.5 }}>
+                  {users.map((listedUser) => (
+                    <Card key={listedUser.id} variant="outlined" sx={{ bgcolor: "background.default" }}>
+                      <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                        <Stack direction="row" spacing={2} sx={{ mb: 1.5, alignItems: "center", justifyContent: "space-between" }}>
+                          <Box>
+                            <Typography sx={{ fontWeight: 900 }}>{listedUser.username}</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 700 }}>{listedUser.role.toLowerCase()}</Typography>
+                          </Box>
+                          {listedUser.role === "ADMIN" ? <Chip label="Admin" color="primary" size="small" /> : null}
+                        </Stack>
 
-          <form action={changePasswordAction} className="mt-5 space-y-4">
-            <label className="block">
-              <span className="text-sm font-semibold text-zinc-200">
-                Current password
-              </span>
-              <input
-                className="mt-2 h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base text-zinc-50 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
-                name="currentPassword"
-                type="password"
-                autoComplete="current-password"
-                required
-              />
-            </label>
+                        <Stack component="form" action={updateUserUsernameAction.bind(null, listedUser.id)} direction="row" spacing={1}>
+                          <TextField name="username" type="text" autoCapitalize="none" defaultValue={listedUser.username} required fullWidth size="small" />
+                          <Button type="submit" variant="contained" color="secondary">Rename</Button>
+                        </Stack>
 
-            <label className="block">
-              <span className="text-sm font-semibold text-zinc-200">New password</span>
-              <input
-                className="mt-2 h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base text-zinc-50 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
-                name="newPassword"
-                type="password"
-                autoComplete="new-password"
-                minLength={minimumPasswordLength}
-                required
-              />
-            </label>
-
-            <label className="block">
-              <span className="text-sm font-semibold text-zinc-200">
-                Confirm new password
-              </span>
-              <input
-                className="mt-2 h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base text-zinc-50 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
-                name="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                minLength={minimumPasswordLength}
-                required
-              />
-            </label>
-
-            <button className="h-14 w-full rounded-2xl bg-lime-300 px-5 text-base font-black text-zinc-950 transition hover:bg-lime-200">
-              Change password
-            </button>
-          </form>
-        </section>
-
-        {user.role === "ADMIN" ? (
-          <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
-            <h2 className="text-xl font-black">Users</h2>
-            <p className="mt-2 text-sm font-semibold text-zinc-400">
-              Create users, rename accounts, and transfer the single admin role.
-            </p>
-
-            <form action={createUserAction} className="mt-5 space-y-4 rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
-              <h3 className="font-black">Create user</h3>
-              <label className="block">
-                <span className="text-sm font-semibold text-zinc-200">Username</span>
-                <input
-                  className="mt-2 h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-900 px-4 text-base text-zinc-50 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
-                  name="username"
-                  type="text"
-                  autoCapitalize="none"
-                  autoComplete="off"
-                  required
-                />
-              </label>
-              <label className="block">
-                <span className="text-sm font-semibold text-zinc-200">Initial password</span>
-                <input
-                  className="mt-2 h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-900 px-4 text-base text-zinc-50 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  minLength={minimumPasswordLength}
-                  required
-                />
-              </label>
-              <button className="h-14 w-full rounded-2xl bg-lime-300 px-5 text-base font-black text-zinc-950 transition hover:bg-lime-200">
-                Create user
-              </button>
-            </form>
-
-            <div className="mt-5 space-y-3">
-              {users.map((listedUser) => (
-                <div key={listedUser.id} className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-black">{listedUser.username}</p>
-                      <p className="text-sm font-semibold text-zinc-500">{listedUser.role.toLowerCase()}</p>
-                    </div>
-                    {listedUser.role === "ADMIN" ? (
-                      <span className="rounded-full bg-lime-300 px-3 py-1 text-xs font-black text-zinc-950">Admin</span>
-                    ) : null}
-                  </div>
-
-                  <form action={updateUserUsernameAction.bind(null, listedUser.id)} className="flex gap-2">
-                    <input
-                      className="h-12 min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-900 px-4 text-base text-zinc-50 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
-                      name="username"
-                      type="text"
-                      autoCapitalize="none"
-                      defaultValue={listedUser.username}
-                      required
-                    />
-                    <button className="h-12 rounded-2xl bg-zinc-50 px-4 text-sm font-black text-zinc-950">
-                      Rename
-                    </button>
-                  </form>
-
-                  {listedUser.role !== "ADMIN" ? (
-                    <form action={transferAdminAction.bind(null, listedUser.id)} className="mt-3">
-                      <button className="h-12 w-full rounded-2xl border border-amber-300/40 px-4 text-sm font-black text-amber-100">
-                        Transfer admin to {listedUser.username}
-                      </button>
-                    </form>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
-      </div>
-    </main>
+                        {listedUser.role !== "ADMIN" ? (
+                          <>
+                            <Divider sx={{ my: 1.5 }} />
+                            <Box component="form" action={transferAdminAction.bind(null, listedUser.id)}>
+                              <Button type="submit" variant="outlined" color="warning" fullWidth>
+                                Transfer admin to {listedUser.username}
+                              </Button>
+                            </Box>
+                          </>
+                        ) : null}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Stack>
+              </CardContent>
+            </Card>
+          ) : null}
+        </Stack>
+      </Container>
+    </Box>
   );
 }

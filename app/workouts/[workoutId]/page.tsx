@@ -1,4 +1,12 @@
-import Link from "next/link";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import Container from "@mui/material/Container";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import { notFound } from "next/navigation";
 import { LocalDateTime } from "@/app/local-date-time";
 import type { ExerciseSuggestion } from "@/app/workouts/[workoutId]/add-exercise-form";
@@ -123,102 +131,71 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 px-4 py-5 text-zinc-50">
-      <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
-        <header className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/20">
-          <Link href="/" className="text-sm font-bold text-lime-300">
-            ← Back to workouts
-          </Link>
+    <Box component="main" sx={{ minHeight: "100vh", bgcolor: "background.default", py: 2.5 }}>
+      <Container maxWidth="sm" disableGutters sx={{ px: 2 }}>
+        <Stack spacing={2.5}>
+          <Card component="header">
+            <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+              <Button href="/" startIcon={<ArrowBackIcon />} sx={{ px: 0 }}>
+                Back to workouts
+              </Button>
+              <Box sx={{ mt: 2.5 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 700 }}><WorkoutDate date={workout.startedAt} /></Typography>
+                <Typography variant="h4" component="h1" sx={{ mt: 1 }}>
+                  {workout.endedAt ? "Workout complete" : "Active workout"}
+                </Typography>
+              </Box>
+              {isActiveWorkout && !canFinishWorkout ? (
+                <Alert severity="warning" sx={{ mt: 2.5 }}>
+                  <Typography sx={{ fontWeight: 900 }}>{showFinishError ? "Workout not finished." : "Finish locked for now."}</Typography>
+                  Add at least one exercise and at least one entry for every exercise before finishing.
+                </Alert>
+              ) : null}
+            </CardContent>
+          </Card>
 
-          <div className="mt-5 flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-zinc-400"><WorkoutDate date={workout.startedAt} /></p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight">
-                {workout.endedAt ? "Workout complete" : "Active workout"}
-              </h1>
-            </div>
-
-            {isActiveWorkout ? null : null}
-          </div>
-
-          {isActiveWorkout && !canFinishWorkout ? (
-            <div className="mt-5 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4">
-              <p className="text-sm font-black text-amber-100">
-                {showFinishError ? "Workout not finished." : "Finish locked for now."}
-              </p>
-              <p className="mt-1 text-sm font-semibold text-amber-100/80">
-                Add at least one exercise and at least one entry for every exercise before finishing.
-              </p>
-            </div>
-          ) : null}
-        </header>
-
-        <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
-          <h2 className="text-xl font-black">Workout locked</h2>
-          <p className="mt-2 text-sm font-semibold text-zinc-400">
+          <Alert severity="info">
+            <Typography sx={{ fontWeight: 900 }}>Workout locked</Typography>
             Completed workouts are read-only so the recorded history stays intact.
-          </p>
-        </section>
+          </Alert>
 
-        {workout.exercises.length === 0 ? (
-          <section className="rounded-3xl border border-dashed border-zinc-700 p-8 text-center">
-            <p className="font-black text-zinc-200">No exercises yet.</p>
-            <p className="mt-1 text-sm text-zinc-500">
-              This workout has no exercises.
-            </p>
-          </section>
-        ) : (
-          workout.exercises.map((entry) => {
-            const needsEntry = false;
+          {workout.exercises.length === 0 ? (
+            <Box component="section" sx={{ border: 1, borderStyle: "dashed", borderColor: "divider", borderRadius: 3, p: 4, textAlign: "center" }}>
+              <Typography sx={{ fontWeight: 900 }}>No exercises yet.</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>This workout has no exercises.</Typography>
+            </Box>
+          ) : (
+            workout.exercises.map((entry) => (
+              <Card component="section" key={entry.id} id={`exercise-${entry.id}`}>
+                <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+                  <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: "0.25em" }}>
+                    Exercise {entry.order + 1}
+                  </Typography>
+                  <Typography variant="h5" component="h2" sx={{ mt: 1 }}>
+                    {entry.exercise.name}
+                  </Typography>
+                  {entry.sets.length > 0 ? (
+                    <Stack spacing={1} sx={{ mt: 2.5 }}>
+                      {entry.sets.map((set) => {
+                        const summary = set.metrics.map(formatMetric).join(" · ");
 
-            return (
-              <section
-                key={entry.id}
-                id={`exercise-${entry.id}`}
-                className={`rounded-3xl border bg-zinc-900 p-5 shadow-xl shadow-black/10 ${
-                  needsEntry ? "border-amber-300/50" : "border-zinc-800"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
-                      Exercise {entry.order + 1}
-                    </p>
-                    <h2 className="mt-2 text-2xl font-black">{entry.exercise.name}</h2>
-                  </div>
-
-                  {isActiveWorkout ? null : null}
-                </div>
-
-                {needsEntry ? (
-                  <p className="mt-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm font-semibold text-amber-100">
-                    Add at least one entry for this exercise before finishing.
-                  </p>
-                ) : null}
-
-                {entry.sets.length > 0 ? (
-                  <div className="mt-5 space-y-2">
-                    {entry.sets.map((set) => {
-                      const summary = set.metrics.map(formatMetric).join(" · ");
-
-                      return (
-                        <div key={set.id} className="rounded-2xl bg-zinc-950 p-3">
-                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
-                            Set {set.order + 1}
-                          </p>
-                          <p className="mt-1 text-sm font-semibold text-zinc-200">{summary}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : null}
-
-                {isActiveWorkout ? null : null}
-              </section>
-            );
-          })
-        )}
-      </div>
-    </main>
+                        return (
+                          <Box key={set.id} sx={{ bgcolor: "background.default", borderRadius: 3, p: 1.5 }}>
+                            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: "0.2em" }}>
+                              Set {set.order + 1}
+                            </Typography>
+                            <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 700 }}>{summary}</Typography>
+                          </Box>
+                        );
+                      })}
+                    </Stack>
+                  ) : null}
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </Stack>
+      </Container>
+    </Box>
   );
 }

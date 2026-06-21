@@ -1,4 +1,16 @@
-import Link from "next/link";
+import AddIcon from "@mui/icons-material/Add";
+import LogoutIcon from "@mui/icons-material/Logout";
+import SettingsIcon from "@mui/icons-material/Settings";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardActionArea from "@mui/material/CardActionArea";
+import CardContent from "@mui/material/CardContent";
+import Chip from "@mui/material/Chip";
+import Container from "@mui/material/Container";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
 import { logoutAction } from "@/app/login/actions";
 import { LocalDateTime } from "@/app/local-date-time";
 import { createWorkoutAction } from "@/app/workouts/actions";
@@ -36,142 +48,119 @@ export default async function Home() {
   const activeWorkout = workouts.find((workout) => !workout.endedAt);
 
   return (
-    <main className="min-h-screen bg-zinc-950 px-4 py-5 text-zinc-50">
-      <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
-        <header className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/20">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.3em] text-lime-300">
-                Workout Tracker
-              </p>
-              <h1 className="mt-3 text-3xl font-black tracking-tight">
-                Ready to train?
-              </h1>
-              <p className="mt-2 text-sm text-zinc-400">Password-protected access.</p>
-              <p className="mt-1 text-sm font-semibold text-zinc-300">Signed in as {user.username}</p>
-            </div>
+    <Box component="main" sx={{ minHeight: "100vh", bgcolor: "background.default", py: 2.5 }}>
+      <Container maxWidth="sm" disableGutters sx={{ px: 2 }}>
+        <Stack spacing={2.5}>
+          <Card component="header">
+            <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+              <Stack direction="row" spacing={2} sx={{ alignItems: "flex-start", justifyContent: "space-between" }}>
+                <Box>
+                  <Typography variant="overline" color="primary" sx={{ fontWeight: 900, letterSpacing: "0.3em" }}>
+                    Workout Tracker
+                  </Typography>
+                  <Typography variant="h4" component="h1" sx={{ mt: 1 }}>
+                    Ready to train?
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Password-protected access.
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 700 }}>
+                    Signed in as {user.username}
+                  </Typography>
+                </Box>
 
-            <div className="flex items-center gap-2">
-              <Link
-                href="/settings"
-                className="grid size-11 place-items-center rounded-full border border-zinc-700 text-zinc-200 transition hover:border-zinc-500"
-                aria-label="Settings"
-                title="Settings"
-              >
-                <svg
-                  aria-hidden="true"
-                  className="size-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M9.7 3.4a2.4 2.4 0 0 1 4.6 0l.2.8a2.4 2.4 0 0 0 3.2 1.8l.8-.3a2.4 2.4 0 0 1 2.3 4l-.6.5a2.4 2.4 0 0 0 0 3.6l.6.5a2.4 2.4 0 0 1-2.3 4l-.8-.3a2.4 2.4 0 0 0-3.2 1.8l-.2.8a2.4 2.4 0 0 1-4.6 0l-.2-.8a2.4 2.4 0 0 0-3.2-1.8l-.8.3a2.4 2.4 0 0 1-2.3-4l.6-.5a2.4 2.4 0 0 0 0-3.6l-.6-.5a2.4 2.4 0 0 1 2.3-4l.8.3a2.4 2.4 0 0 0 3.2-1.8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </Link>
+                <Stack direction="row" spacing={1}>
+                  <IconButton href="/settings" aria-label="Settings" title="Settings" sx={{ border: 1, borderColor: "divider" }}>
+                    <SettingsIcon />
+                  </IconButton>
+                  <Box component="form" action={logoutAction}>
+                    <IconButton type="submit" aria-label="Logout" title="Logout" sx={{ border: 1, borderColor: "divider" }}>
+                      <LogoutIcon />
+                    </IconButton>
+                  </Box>
+                </Stack>
+              </Stack>
+            </CardContent>
+          </Card>
 
-              <form action={logoutAction}>
-                <button
-                  className="grid size-11 place-items-center rounded-full border border-zinc-700 text-zinc-200 transition hover:border-zinc-500"
-                  aria-label="Logout"
-                  title="Logout"
-                >
-                  <svg
-                    aria-hidden="true"
-                    className="size-5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M14 7V5a2 2 0 0 0-2-2H5v18h7a2 2 0 0 0 2-2v-2" />
-                    <path d="M9 12h12" />
-                    <path d="m17 8 4 4-4 4" />
-                  </svg>
-                </button>
-              </form>
-            </div>
-          </div>
-        </header>
-
-        {activeWorkout ? (
-          <Link
-            href={`/workouts/${activeWorkout.id}`}
-            className="rounded-3xl border border-lime-300/40 bg-lime-300 p-5 text-zinc-950 shadow-xl shadow-lime-950/20 transition hover:bg-lime-200"
-          >
-            <p className="text-sm font-black uppercase tracking-[0.2em]">Active workout</p>
-            <p className="mt-2 text-2xl font-black">Continue workout</p>
-            <p className="mt-1 text-sm font-semibold">
-              Started <WorkoutDate date={activeWorkout.startedAt} />
-            </p>
-          </Link>
-        ) : (
-          <form action={createWorkoutAction}>
-            <button className="h-16 w-full rounded-3xl bg-lime-300 px-5 text-lg font-black text-zinc-950 shadow-xl shadow-lime-950/20 transition hover:bg-lime-200">
-              Start a new workout
-            </button>
-          </form>
-        )}
-
-        <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
-          <div className="mb-4 flex items-end justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-black">Recent workouts</h2>
-              <p className="text-sm text-zinc-400">Your latest sessions and set counts.</p>
-            </div>
-
-            {activeWorkout ? (
-              <form action={createWorkoutAction}>
-                <button className="rounded-full bg-zinc-50 px-4 py-2 text-sm font-black text-zinc-950">
-                  New
-                </button>
-              </form>
-            ) : null}
-          </div>
-
-          {workouts.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-zinc-700 p-6 text-center">
-              <p className="text-sm font-semibold text-zinc-300">No workouts yet.</p>
-              <p className="mt-1 text-sm text-zinc-500">Start one when you get to the gym.</p>
-            </div>
+          {activeWorkout ? (
+            <Card sx={{ bgcolor: "primary.main", color: "primary.contrastText", borderColor: "rgba(190, 242, 100, 0.4)" }}>
+              <CardActionArea href={`/workouts/${activeWorkout.id}`}>
+                <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+                  <Typography variant="overline" sx={{ fontWeight: 900, letterSpacing: "0.2em" }}>
+                    Active workout
+                  </Typography>
+                  <Typography variant="h5" component="p" sx={{ mt: 1 }}>
+                    Continue workout
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 800 }}>
+                    Started <WorkoutDate date={activeWorkout.startedAt} />
+                  </Typography>
+                </CardContent>
+              </CardActionArea>
+            </Card>
           ) : (
-            <div className="space-y-3">
-              {workouts.map((workout) => {
-                const setCount = workout.exercises.reduce(
-                  (count, exercise) => count + exercise.sets.length,
-                  0,
-                );
-
-                return (
-                  <Link
-                    href={`/workouts/${workout.id}`}
-                    key={workout.id}
-                    className="block rounded-2xl border border-zinc-800 bg-zinc-950 p-4 transition hover:border-zinc-600"
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="font-black"><WorkoutDate date={workout.startedAt} /></p>
-                        <p className="mt-1 text-sm text-zinc-400">
-                          {workout.exercises.length} exercises · {setCount} sets
-                        </p>
-                      </div>
-
-                      <span className="rounded-full bg-zinc-800 px-3 py-1 text-xs font-bold text-zinc-300">
-                        {workout.endedAt ? "Done" : "Active"}
-                      </span>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
+            <Box component="form" action={createWorkoutAction}>
+              <Button type="submit" variant="contained" fullWidth size="large" sx={{ minHeight: 64, borderRadius: 3, fontSize: "1.125rem" }}>
+                Start a new workout
+              </Button>
+            </Box>
           )}
-        </section>
-      </div>
-    </main>
+
+          <Card component="section">
+            <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+              <Stack direction="row" spacing={2} sx={{ mb: 2, alignItems: "flex-end", justifyContent: "space-between" }}>
+                <Box>
+                  <Typography variant="h6" component="h2">Recent workouts</Typography>
+                  <Typography variant="body2" color="text.secondary">Your latest sessions and set counts.</Typography>
+                </Box>
+
+                {activeWorkout ? (
+                  <Box component="form" action={createWorkoutAction}>
+                    <Button type="submit" variant="contained" color="secondary" size="small" startIcon={<AddIcon />}>
+                      New
+                    </Button>
+                  </Box>
+                ) : null}
+              </Stack>
+
+              {workouts.length === 0 ? (
+                <Box sx={{ border: 1, borderStyle: "dashed", borderColor: "divider", borderRadius: 3, p: 3, textAlign: "center" }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>No workouts yet.</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Start one when you get to the gym.</Typography>
+                </Box>
+              ) : (
+                <Stack spacing={1.5}>
+                  {workouts.map((workout) => {
+                    const setCount = workout.exercises.reduce(
+                      (count, exercise) => count + exercise.sets.length,
+                      0,
+                    );
+
+                    return (
+                      <Card key={workout.id} variant="outlined" sx={{ bgcolor: "background.default" }}>
+                        <CardActionArea href={`/workouts/${workout.id}`}>
+                          <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
+                            <Stack direction="row" spacing={2} sx={{ alignItems: "center", justifyContent: "space-between" }}>
+                              <Box>
+                                <Typography sx={{ fontWeight: 900 }}><WorkoutDate date={workout.startedAt} /></Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                  {workout.exercises.length} exercises · {setCount} sets
+                                </Typography>
+                              </Box>
+                              <Chip label={workout.endedAt ? "Done" : "Active"} color={workout.endedAt ? "default" : "primary"} size="small" />
+                            </Stack>
+                          </CardContent>
+                        </CardActionArea>
+                      </Card>
+                    );
+                  })}
+                </Stack>
+              )}
+            </CardContent>
+          </Card>
+        </Stack>
+      </Container>
+    </Box>
   );
 }

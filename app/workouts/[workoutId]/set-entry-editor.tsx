@@ -1,5 +1,16 @@
 "use client";
 
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import SaveIcon from "@mui/icons-material/Save";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Grid from "@mui/material/Grid";
+import MenuItem from "@mui/material/MenuItem";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import { useState } from "react";
 
 type EditableMetric = {
@@ -24,6 +35,59 @@ function hasAtLeastOneMetric(formData: FormData) {
   return ["reps", "weight", "time", "distance", "laps"].some((name) => String(formData.get(name) ?? "").trim() !== "");
 }
 
+function MetricFields({ reps, weight, time, distance, laps, isSaving }: {
+  reps?: EditableMetric;
+  weight?: EditableMetric;
+  time?: EditableMetric;
+  distance?: EditableMetric;
+  laps?: EditableMetric;
+  isSaving: boolean;
+}) {
+  return (
+    <Grid container spacing={1}>
+      <Grid size={6}>
+        <TextField name="reps" label="Reps" defaultValue={reps?.value ?? ""} fullWidth size="small" slotProps={{ htmlInput: { inputMode: "decimal" } }} />
+      </Grid>
+      <Grid size={6}>
+        <Stack direction="row" spacing={1}>
+          <TextField name="weight" label="Weight" defaultValue={weight?.value ?? ""} fullWidth size="small" slotProps={{ htmlInput: { inputMode: "decimal" } }} />
+          <TextField name="weightUnit" defaultValue={weight?.unit ?? "LB"} select size="small" sx={{ width: 86 }}>
+            <MenuItem value="LB">lb</MenuItem>
+            <MenuItem value="KG">kg</MenuItem>
+          </TextField>
+        </Stack>
+      </Grid>
+      <Grid size={6}>
+        <Stack direction="row" spacing={1}>
+          <TextField name="time" label="Time" defaultValue={time?.value ?? ""} fullWidth size="small" slotProps={{ htmlInput: { inputMode: "decimal" } }} />
+          <TextField name="timeUnit" defaultValue={time?.unit ?? "MINUTES"} select size="small" sx={{ width: 92 }}>
+            <MenuItem value="SECONDS">sec</MenuItem>
+            <MenuItem value="MINUTES">min</MenuItem>
+          </TextField>
+        </Stack>
+      </Grid>
+      <Grid size={6}>
+        <Stack direction="row" spacing={1}>
+          <TextField name="distance" label="Distance" defaultValue={distance?.value ?? ""} fullWidth size="small" slotProps={{ htmlInput: { inputMode: "decimal" } }} />
+          <TextField name="distanceUnit" defaultValue={distance?.unit ?? "MILES"} select size="small" sx={{ width: 88 }}>
+            <MenuItem value="MILES">mi</MenuItem>
+            <MenuItem value="KM">km</MenuItem>
+            <MenuItem value="METERS">m</MenuItem>
+          </TextField>
+        </Stack>
+      </Grid>
+      <Grid size={6}>
+        <TextField name="laps" label="Laps" defaultValue={laps?.value ?? ""} fullWidth size="small" slotProps={{ htmlInput: { inputMode: "decimal" } }} />
+      </Grid>
+      <Grid size={6}>
+        <Button type="submit" variant="contained" fullWidth startIcon={<SaveIcon />} disabled={isSaving} sx={{ minHeight: 40 }}>
+          Save
+        </Button>
+      </Grid>
+    </Grid>
+  );
+}
+
 export function SetEntryEditor({ label, summary, metrics, updateAction, deleteAction }: SetEntryEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -36,7 +100,8 @@ export function SetEntryEditor({ label, summary, metrics, updateAction, deleteAc
 
   if (isEditing) {
     return (
-      <form
+      <Box
+        component="form"
         action={async (formData) => {
           if (!hasAtLeastOneMetric(formData)) {
             setError("Keep at least one entry value.");
@@ -49,78 +114,55 @@ export function SetEntryEditor({ label, summary, metrics, updateAction, deleteAc
           setIsSaving(false);
           setIsEditing(false);
         }}
-        className="rounded-2xl border border-lime-300/30 bg-zinc-950 p-3"
+        sx={{ border: 1, borderColor: "primary.main", bgcolor: "background.default", borderRadius: 3, p: 1.5 }}
       >
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-lime-200">Edit {label}</p>
-          <button
+        <Stack direction="row" spacing={1.5} sx={{ mb: 1.5, alignItems: "center", justifyContent: "space-between" }}>
+          <Typography variant="overline" color="primary" sx={{ fontWeight: 800, letterSpacing: "0.2em" }}>Edit {label}</Typography>
+          <Button
             type="button"
-            className="rounded-full border border-zinc-700 px-3 py-2 text-sm font-bold text-zinc-300"
+            variant="outlined"
+            size="small"
             onClick={() => {
               setError("");
               setIsEditing(false);
             }}
           >
             Cancel
-          </button>
-        </div>
+          </Button>
+        </Stack>
 
-        <div className="grid grid-cols-2 gap-2">
-          <input className="metric-input" name="reps" inputMode="decimal" placeholder="Reps" defaultValue={reps?.value ?? ""} />
-          <div className="flex gap-1">
-            <input className="metric-input" name="weight" inputMode="decimal" placeholder="Weight" defaultValue={weight?.value ?? ""} />
-            <select className="metric-select" name="weightUnit" defaultValue={weight?.unit ?? "LB"}>
-              <option value="LB">lb</option>
-              <option value="KG">kg</option>
-            </select>
-          </div>
-          <div className="flex gap-1">
-            <input className="metric-input" name="time" inputMode="decimal" placeholder="Time" defaultValue={time?.value ?? ""} />
-            <select className="metric-select" name="timeUnit" defaultValue={time?.unit ?? "MINUTES"}>
-              <option value="SECONDS">sec</option>
-              <option value="MINUTES">min</option>
-            </select>
-          </div>
-          <div className="flex gap-1">
-            <input className="metric-input" name="distance" inputMode="decimal" placeholder="Distance" defaultValue={distance?.value ?? ""} />
-            <select className="metric-select" name="distanceUnit" defaultValue={distance?.unit ?? "MILES"}>
-              <option value="MILES">mi</option>
-              <option value="KM">km</option>
-              <option value="METERS">m</option>
-            </select>
-          </div>
-          <input className="metric-input" name="laps" inputMode="decimal" placeholder="Laps" defaultValue={laps?.value ?? ""} />
-          <button className="h-12 rounded-xl bg-lime-300 px-4 font-black text-zinc-950 disabled:opacity-60" disabled={isSaving}>
-            Save
-          </button>
-        </div>
+        <MetricFields reps={reps} weight={weight} time={time} distance={distance} laps={laps} isSaving={isSaving} />
 
-        {error ? <p className="mt-2 text-sm font-semibold text-red-200">{error}</p> : null}
-      </form>
+        {error ? <Alert severity="error" sx={{ mt: 1 }}>{error}</Alert> : null}
+      </Box>
     );
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl bg-zinc-950 p-3">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">{label}</p>
-        <p className="mt-1 text-sm font-semibold text-zinc-200">{summary}</p>
-      </div>
+    <Box sx={{ bgcolor: "background.default", borderRadius: 3, p: 1.5 }}>
+      <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", justifyContent: "space-between" }}>
+        <Box>
+          <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 800, letterSpacing: "0.2em" }}>{label}</Typography>
+          <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 700 }}>{summary}</Typography>
+        </Box>
 
-      <div className="flex shrink-0 gap-2">
-        <button
+        <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+        <Button
           type="button"
-          className="rounded-full bg-zinc-800 px-3 py-2 text-sm font-bold text-zinc-300"
+          variant="outlined"
+          size="small"
+          startIcon={<EditIcon />}
           onClick={() => setIsEditing(true)}
         >
           Edit
-        </button>
-        <form action={deleteAction}>
-          <button className="rounded-full bg-zinc-800 px-3 py-2 text-sm font-bold text-zinc-300">
+        </Button>
+        <Box component="form" action={deleteAction}>
+          <Button type="submit" variant="outlined" color="error" size="small" startIcon={<DeleteIcon />}>
             Remove
-          </button>
-        </form>
-      </div>
-    </div>
+          </Button>
+        </Box>
+        </Stack>
+      </Stack>
+    </Box>
   );
 }

@@ -18,7 +18,7 @@ The app is inspired by the older `fitness-ui` and `fitness-backend` repositories
 - React 19
 - TypeScript
 - Tailwind CSS 4
-- HyperUI-inspired copied Tailwind components
+- Material UI and MUI Icons
 - Prisma 7
 - PostgreSQL 18
 - Docker Compose
@@ -107,7 +107,7 @@ Prioritize:
 - low-friction add/delete/edit flows
 - readable workout state while standing in a gym
 
-Use HyperUI as copy/paste design inspiration. Do not add HyperUI as a package dependency unless the project direction changes.
+Use Material UI and MUI Icons for buttons, cards, inputs, alerts, chips, and iconography. Preserve the current dark zinc surfaces, lime accent color, rounded cards, and high-contrast mobile gym-use identity.
 
 Completed workouts are read-only in the UI. Active workouts support adding/removing exercises, editing exercise names, and adding/updating/deleting set entries.
 
