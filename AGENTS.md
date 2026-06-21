@@ -42,6 +42,10 @@ Run local database commands through the package scripts so `.env.development` is
 
 The auth user is created automatically with a generated password when no user exists. The initial password is logged server-side only on that first creation.
 
+## Deployment Rules
+
+Vercel deployments are restricted in `vercel.json` to only `main` for production and `dev` for development. Do not enable automatic deployments for other branches unless explicitly requested.
+
 ## Database Rules
 
 Use Prisma for database access.
