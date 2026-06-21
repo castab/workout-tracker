@@ -426,7 +426,20 @@ export function OfflineWorkoutClient({ initialSnapshot, suggestions, focusedExer
                 </div>
 
                 {!snapshot.endedAt ? (
-                  <button className="rounded-full border border-red-400/40 px-3 py-2 text-sm font-bold text-red-200" onClick={() => void queue(operation("removeExercise", { workoutExerciseId: entry.id }))}>Delete</button>
+                  <button
+                    className="inline-flex size-9 items-center justify-center rounded-full border border-red-400/40 text-red-200 transition hover:border-red-300"
+                    aria-label={`Delete ${entry.exercise.name}`}
+                    title={`Delete ${entry.exercise.name}`}
+                    onClick={() => void queue(operation("removeExercise", { workoutExerciseId: entry.id }))}
+                  >
+                    <svg aria-hidden="true" className="size-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 20 20">
+                      <path d="M3.5 5.5h13" />
+                      <path d="M8 5.5V4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5" />
+                      <path d="M5.5 5.5 6.2 16a1.5 1.5 0 0 0 1.5 1.4h4.6A1.5 1.5 0 0 0 13.8 16l.7-10.5" />
+                      <path d="M8.5 8.5v5" />
+                      <path d="M11.5 8.5v5" />
+                    </svg>
+                  </button>
                 ) : null}
               </div>
 
@@ -466,8 +479,21 @@ export function OfflineWorkoutClient({ initialSnapshot, suggestions, focusedExer
                         </div>
                         {!snapshot.endedAt ? (
                           <div className="flex shrink-0 gap-2">
-                            <button type="button" className="rounded-full bg-zinc-800 px-3 py-2 text-sm font-bold text-zinc-300" onClick={() => setEditingSetId(set.id)}>Edit</button>
-                            <button className="rounded-full bg-zinc-800 px-3 py-2 text-sm font-bold text-zinc-300" onClick={() => void queue(operation("deleteSet", { setId: set.id }))}>Remove</button>
+                            <button type="button" className="inline-flex size-9 items-center justify-center rounded-full bg-zinc-800 text-zinc-300 transition hover:bg-zinc-700" aria-label={`Edit Set ${set.order + 1}`} title={`Edit Set ${set.order + 1}`} onClick={() => setEditingSetId(set.id)}>
+                              <svg aria-hidden="true" className="size-4" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 14.5V16h1.5L15.1 6.4l-1.5-1.5L4 14.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                                <path d="m12.6 4.9 1-1a1.4 1.4 0 0 1 2 0l.5.5a1.4 1.4 0 0 1 0 2l-1 1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                              </svg>
+                            </button>
+                            <button className="inline-flex size-9 items-center justify-center rounded-full bg-zinc-800 text-zinc-300 transition hover:bg-zinc-700" aria-label={`Remove Set ${set.order + 1}`} title={`Remove Set ${set.order + 1}`} onClick={() => void queue(operation("deleteSet", { setId: set.id }))}>
+                              <svg aria-hidden="true" className="size-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 20 20">
+                                <path d="M3.5 5.5h13" />
+                                <path d="M8 5.5V4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5" />
+                                <path d="M5.5 5.5 6.2 16a1.5 1.5 0 0 0 1.5 1.4h4.6A1.5 1.5 0 0 0 13.8 16l.7-10.5" />
+                                <path d="M8.5 8.5v5" />
+                                <path d="M11.5 8.5v5" />
+                              </svg>
+                            </button>
                           </div>
                         ) : null}
                       </div>
