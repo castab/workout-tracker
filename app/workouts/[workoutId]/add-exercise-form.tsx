@@ -61,7 +61,10 @@ export function AddExerciseForm({ action, suggestions }: AddExerciseFormProps) {
           onChange={(event) => setName(event.target.value)}
           required
         />
-        <button className="h-14 rounded-2xl bg-lime-300 px-5 font-black text-zinc-950">
+        <button
+          className="h-14 rounded-2xl bg-lime-300 px-5 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
+          aria-label="Add exercise"
+        >
           Add
         </button>
       </div>

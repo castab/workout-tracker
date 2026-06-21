@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PencilIcon, TrashIcon } from "./workout-icons";
 
 type EditableMetric = {
   type: string;
@@ -90,7 +91,11 @@ export function SetEntryEditor({ label, summary, metrics, updateAction, deleteAc
             </select>
           </div>
           <input className="metric-input" name="laps" inputMode="decimal" placeholder="Laps" defaultValue={laps?.value ?? ""} />
-          <button className="h-12 rounded-xl bg-lime-300 px-4 font-black text-zinc-950 disabled:opacity-60" disabled={isSaving}>
+          <button
+            className="h-12 rounded-xl bg-lime-300 px-4 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30 disabled:opacity-60 disabled:hover:bg-lime-300"
+            aria-label={`Save ${label}`}
+            disabled={isSaving}
+          >
             Save
           </button>
         </div>
@@ -110,14 +115,20 @@ export function SetEntryEditor({ label, summary, metrics, updateAction, deleteAc
       <div className="flex shrink-0 gap-2">
         <button
           type="button"
-          className="rounded-full bg-zinc-800 px-3 py-2 text-sm font-bold text-zinc-300"
+          className="inline-flex size-9 items-center justify-center rounded-full bg-zinc-800 text-zinc-300 transition hover:bg-zinc-700"
+          aria-label={`Edit ${label}`}
+          title={`Edit ${label}`}
           onClick={() => setIsEditing(true)}
         >
-          Edit
+          <PencilIcon />
         </button>
         <form action={deleteAction}>
-          <button className="rounded-full bg-zinc-800 px-3 py-2 text-sm font-bold text-zinc-300">
-            Remove
+          <button
+            className="inline-flex size-9 items-center justify-center rounded-full bg-zinc-800 text-zinc-300 transition hover:bg-zinc-700"
+            aria-label={`Remove ${label}`}
+            title={`Remove ${label}`}
+          >
+            <TrashIcon />
           </button>
         </form>
       </div>
