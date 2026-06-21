@@ -1,10 +1,5 @@
 export function PencilIcon() {
-  return (
-    <svg aria-hidden="true" className="size-4" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M4 14.5V16h1.5L15.1 6.4l-1.5-1.5L4 14.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="m12.6 4.9 1-1a1.4 1.4 0 0 1 2 0l.5.5a1.4 1.4 0 0 1 0 2l-1 1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
+  return <span aria-hidden="true" className="text-base leading-none">✎</span>;
 }
 
 export function TrashIcon() {
