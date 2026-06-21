@@ -148,6 +148,14 @@ Operational notes:
 - If sync fails, queued changes remain in IndexedDB and retry when the app is online again.
 - Push notifications are intentionally not implemented; the app does not request notification permission or require VAPID keys.
 
+## Deployment
+
+Vercel deployments are intentionally restricted by `vercel.json`:
+
+- `main` is allowed for production deployments.
+- `dev` is allowed for development deployments.
+- All other branches are blocked from automatic Vercel deployments.
+
 ## Code Layout
 
 - `app/page.tsx` lists recent workouts and starts new workouts.
