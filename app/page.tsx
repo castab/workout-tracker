@@ -127,8 +127,24 @@ export default async function Home() {
 
             {activeWorkout ? (
               <form action={createWorkoutAction}>
-                <button className="rounded-full bg-zinc-50 px-4 py-2 text-sm font-black text-zinc-950">
-                  New
+                <button
+                  className="grid size-11 place-items-center rounded-full bg-zinc-50 text-zinc-950 transition hover:bg-zinc-200"
+                  aria-label="New workout"
+                  title="New workout"
+                >
+                  <svg
+                    aria-hidden="true"
+                    className="size-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2.5"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 5v14" />
+                    <path d="M5 12h14" />
+                  </svg>
                 </button>
               </form>
             ) : null}
