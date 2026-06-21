@@ -27,7 +27,7 @@ The app is inspired by the older `fitness-ui` and `fitness-backend` repositories
 
 Use the checked-in `.env.development` for local development.
 
-Database connection variables are split by purpose. App runtime and seed operations use `POSTGRES_PRISMA_URL`; Prisma migrations use `POSTGRES_URL_NON_POOLING`. In local development, both point at the same Docker Postgres database.
+Database connection variables are split by purpose. App runtime and seed operations use `DATABASE_POOL_URL`; Prisma migrations use `DATABASE_DIRECT_URL`. In local development, both point at the same Docker Postgres database.
 
 `npm run dev` should start the PostgreSQL 18 Docker container before starting Next.js.
 
@@ -52,7 +52,7 @@ Use Prisma for database access.
 
 The database provider is PostgreSQL. Development uses PostgreSQL 18 through Docker.
 
-Use `POSTGRES_PRISMA_URL` for the shared Prisma client and app-style database operations. Use `POSTGRES_URL_NON_POOLING` for Prisma migrations.
+Use `DATABASE_POOL_URL` for the shared Prisma client and app-style database operations. Use `DATABASE_DIRECT_URL` for Prisma migrations.
 
 This project uses Prisma 7 with `@prisma/adapter-pg`. The generated Prisma client is intentionally configured in `prisma/schema.prisma` with:
 
