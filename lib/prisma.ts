@@ -2,7 +2,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/lib/generated/prisma/client";
 
 const databaseUrl =
-  process.env.DATABASE_URL ??
+  process.env.DATABASE_POOL_URL ??
   "postgresql://missing:missing@localhost:5432/missing?schema=public";
 
 const globalForPrisma = globalThis as unknown as {

@@ -33,6 +33,13 @@ A mobile-first, single-user workout tracker for replacing a paper gym notebook. 
 
 This project uses a checked-in `.env.development` for local development defaults. These values are intentionally non-production credentials for the local Docker database.
 
+Database connection variables are split by purpose:
+
+- `DATABASE_POOL_URL` is used by the running app and seed script for normal database operations.
+- `DATABASE_DIRECT_URL` is used by Prisma migrations.
+
+For local development, both variables point at the same Docker Postgres database.
+
 `npm run dev` starts the local PostgreSQL 18 container before starting Next.js.
 
 Use `npm run pwa:dev` when testing installability, service worker behavior, or offline sync locally. It starts the same database container, enables service worker registration, and runs Next.js with `--experimental-https` at `https://localhost:3000`.
@@ -68,6 +75,8 @@ http://localhost:3000
 ## Database
 
 The development database runs in Docker using PostgreSQL 18.
+
+Prisma migrations use `DATABASE_DIRECT_URL`; the app runtime and seed script use `DATABASE_POOL_URL`.
 
 Useful commands:
 
@@ -138,6 +147,14 @@ Operational notes:
 - If a browser keeps an old service worker, close all app tabs and reopen the installed app after deploying a new service worker version.
 - If sync fails, queued changes remain in IndexedDB and retry when the app is online again.
 - Push notifications are intentionally not implemented; the app does not request notification permission or require VAPID keys.
+
+## Deployment
+
+Vercel deployments are intentionally restricted by `vercel.json`:
+
+- `main` is allowed for production deployments.
+- `dev` is allowed for development deployments.
+- All other branches are blocked from automatic Vercel deployments.
 
 ## Code Layout
 
