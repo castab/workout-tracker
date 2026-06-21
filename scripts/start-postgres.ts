@@ -1,10 +1,10 @@
 import { spawnSync } from "node:child_process";
 
-const databaseUrl = process.env.POSTGRES_PRISMA_URL;
+const databaseUrl = process.env.DATABASE_POOL_URL;
 
 if (!databaseUrl) {
   throw new Error(
-    "POSTGRES_PRISMA_URL is required to start the local Postgres container.",
+    "DATABASE_POOL_URL is required to start the local Postgres container.",
   );
 }
 
@@ -12,7 +12,7 @@ const url = new URL(databaseUrl);
 
 if (url.protocol !== "postgresql:" && url.protocol !== "postgres:") {
   throw new Error(
-    "POSTGRES_PRISMA_URL must use the postgresql:// or postgres:// protocol.",
+    "DATABASE_POOL_URL must use the postgresql:// or postgres:// protocol.",
   );
 }
 
@@ -22,7 +22,7 @@ const postgresPassword = decodeURIComponent(url.password);
 
 if (!postgresDb || !postgresUser || !postgresPassword) {
   throw new Error(
-    "POSTGRES_PRISMA_URL must include a database name, username, and password.",
+    "DATABASE_POOL_URL must include a database name, username, and password.",
   );
 }
 

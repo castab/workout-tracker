@@ -35,8 +35,8 @@ This project uses a checked-in `.env.development` for local development defaults
 
 Database connection variables are split by purpose:
 
-- `POSTGRES_PRISMA_URL` is used by the running app for normal database operations.
-- `POSTGRES_URL_NON_POOLING` is used by Prisma migrations.
+- `DATABASE_POOL_URL` is used by the running app and seed script for normal database operations.
+- `DATABASE_DIRECT_URL` is used by Prisma migrations.
 
 For local development, both variables point at the same Docker Postgres database.
 
@@ -76,7 +76,7 @@ http://localhost:3000
 
 The development database runs in Docker using PostgreSQL 18.
 
-Prisma migrations use `POSTGRES_URL_NON_POOLING`; the app runtime and seed script use `POSTGRES_PRISMA_URL`.
+Prisma migrations use `DATABASE_DIRECT_URL`; the app runtime and seed script use `DATABASE_POOL_URL`.
 
 Useful commands:
 
