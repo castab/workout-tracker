@@ -41,6 +41,12 @@ export type OfflineWorkoutOperation =
     }
   | {
       id: string;
+      type: "updateWorkoutStartedAt";
+      createdAt: string;
+      payload: { startedAt: string };
+    }
+  | {
+      id: string;
       type: "addSet";
       createdAt: string;
       payload: { tempSetId: string; workoutExerciseId: string; metrics: OfflineMetric[] };

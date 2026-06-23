@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getWorkoutSnapshot } from "@/lib/workout-snapshot";
@@ -15,6 +16,12 @@ function metricData(setId: string, metrics: OfflineMetric[]) {
     unit: metric.unit,
     value: metric.value,
   }));
+}
+
+function validDate(value: string) {
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 async function activeWorkoutExists(workoutId: string, userId: string) {
@@ -97,6 +104,20 @@ export async function POST(request: Request, context: RouteContext) {
         where: { id: workoutExerciseId },
         data: { exerciseId: exercise.id },
       });
+    }
+
+    if (operation.type === "updateWorkoutStartedAt") {
+      const startedAt = validDate(operation.payload.startedAt);
+
+      if (!startedAt) continue;
+
+      await prisma.workout.updateMany({
+        where: { id: workoutId, userId: user.id, endedAt: null },
+        data: { startedAt },
+      });
+
+      revalidatePath("/");
+      revalidatePath(`/workouts/${workoutId}`);
     }
 
     if (operation.type === "addSet") {

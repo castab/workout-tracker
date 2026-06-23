@@ -45,6 +45,22 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+function datetimeLocalValue(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
+  const offsetMs = date.getTimezoneOffset() * 60_000;
+
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
+function isoFromDatetimeLocal(value: string) {
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 function formatMetric(metric: OfflineMetric) {
   if (metric.type === "REPS") return `${metric.value} reps`;
   if (metric.type === "WEIGHT") return `${metric.value} ${metric.unit.toLowerCase()}`;
@@ -116,6 +132,13 @@ function applyOperation(snapshot: WorkoutSnapshot, item: OfflineWorkoutOperation
           ? { ...entry, exercise: { name: item.payload.name } }
           : entry,
       ),
+    };
+  }
+
+  if (item.type === "updateWorkoutStartedAt") {
+    return {
+      ...snapshot,
+      startedAt: item.payload.startedAt,
     };
   }
 
@@ -230,6 +253,7 @@ export function OfflineWorkoutClient({ initialSnapshot, suggestions, focusedExer
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [pendingCount, setPendingCount] = useState(0);
   const [syncState, setSyncState] = useState<SyncState>(typeof navigator === "undefined" || navigator.onLine ? "online" : "offline");
+  const [isEditingStartedAt, setIsEditingStartedAt] = useState(false);
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
   const canFinishWorkout = snapshot.exercises.length > 0 && snapshot.exercises.every((entry) => entry.sets.length > 0);
@@ -332,7 +356,60 @@ export function OfflineWorkoutClient({ initialSnapshot, suggestions, focusedExer
 
           <div className="mt-5 flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold text-zinc-400">{formatDate(snapshot.startedAt)}</p>
+              {isEditingStartedAt && !snapshot.endedAt ? (
+                <form
+                  className="space-y-3"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const formData = new FormData(event.currentTarget);
+                    const startedAt = isoFromDatetimeLocal(String(formData.get("startedAt") ?? ""));
+
+                    if (!startedAt) return;
+
+                    setIsEditingStartedAt(false);
+                    void queue(operation("updateWorkoutStartedAt", { startedAt }));
+                  }}
+                >
+                  <label className="block text-xs font-bold uppercase tracking-[0.2em] text-zinc-500" htmlFor="workout-started-at">
+                    Workout time
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      id="workout-started-at"
+                      className="h-12 min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base font-bold text-zinc-100 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
+                      name="startedAt"
+                      type="datetime-local"
+                      defaultValue={datetimeLocalValue(snapshot.startedAt)}
+                      required
+                    />
+                    <button className="h-12 rounded-2xl bg-lime-300 px-4 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30">
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      className="h-12 rounded-2xl border border-zinc-700 px-4 font-bold text-zinc-300 transition hover:border-zinc-500"
+                      onClick={() => setIsEditingStartedAt(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-semibold text-zinc-400">{formatDate(snapshot.startedAt)}</p>
+                  {!snapshot.endedAt ? (
+                    <button
+                      type="button"
+                      className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-zinc-700 text-zinc-400 transition hover:border-lime-300 hover:text-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/20"
+                      aria-label="Edit workout time"
+                      title="Edit workout time"
+                      onClick={() => setIsEditingStartedAt(true)}
+                    >
+                      <PencilIcon />
+                    </button>
+                  ) : null}
+                </div>
+              )}
               <h1 className="mt-2 text-3xl font-black tracking-tight">
                 {snapshot.endedAt ? "Workout complete" : "Active workout"}
               </h1>

@@ -59,6 +59,7 @@ model Session {
 model Workout {
   id        String            @id @default(cuid())
   userId    String
+  /// User-controlled workout date/time shown in history.
   startedAt DateTime          @default(now()) @db.Timestamptz(3)
   endedAt   DateTime?         @db.Timestamptz(3)
   emphasis  String            @default("")
