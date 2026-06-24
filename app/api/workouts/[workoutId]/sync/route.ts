@@ -50,6 +50,7 @@ export async function POST(request: Request, context: RouteContext) {
 
     if (operation.type === "addExercise") {
       const name = operation.payload.name.trim();
+      const variant = (operation.payload.variant ?? "").trim();
 
       if (!name) continue;
 
@@ -66,6 +67,7 @@ export async function POST(request: Request, context: RouteContext) {
         data: {
           workoutId,
           exerciseId: exercise.id,
+          variant,
           order: (lastExercise?.order ?? -1) + 1,
         },
       });
@@ -101,6 +103,16 @@ export async function POST(request: Request, context: RouteContext) {
       await prisma.workoutExercise.update({
         where: { id: workoutExerciseId },
         data: { exerciseId: exercise.id },
+      });
+    }
+
+    if (operation.type === "updateExerciseVariant") {
+      const workoutExerciseId = idMap.get(operation.payload.workoutExerciseId) ?? operation.payload.workoutExerciseId;
+      const variant = operation.payload.variant.trim();
+
+      await prisma.workoutExercise.updateMany({
+        where: { id: workoutExerciseId, workoutId },
+        data: { variant },
       });
     }
 

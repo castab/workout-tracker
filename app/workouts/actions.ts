@@ -99,6 +99,7 @@ export async function addExerciseToWorkoutAction(
   }
 
   const name = textValue(formData, "name");
+  const variant = textValue(formData, "variant");
 
   if (!name) {
     return;
@@ -119,6 +120,7 @@ export async function addExerciseToWorkoutAction(
     data: {
       workoutId,
       exerciseId: exercise.id,
+      variant,
       order: (lastExercise?.order ?? -1) + 1,
     },
   });
@@ -199,6 +201,35 @@ export async function updateWorkoutExerciseNameAction(
       });
     }
   }
+
+  revalidatePath(`/workouts/${workoutId}`);
+}
+
+export async function updateWorkoutExerciseVariantAction(
+  workoutId: string,
+  workoutExerciseId: string,
+  formData: FormData,
+) {
+  const user = await requireUser();
+  const variant = textValue(formData, "variant");
+
+  const workoutExercise = await prisma.workoutExercise.findUnique({
+    where: { id: workoutExerciseId },
+    include: { workout: { select: { endedAt: true, userId: true } } },
+  });
+
+  if (!workoutExercise || workoutExercise.workoutId !== workoutId || workoutExercise.workout.userId !== user.id || workoutExercise.workout.endedAt) {
+    return;
+  }
+
+  if (workoutExercise.variant === variant) {
+    return;
+  }
+
+  await prisma.workoutExercise.update({
+    where: { id: workoutExerciseId },
+    data: { variant },
+  });
 
   revalidatePath(`/workouts/${workoutId}`);
 }
