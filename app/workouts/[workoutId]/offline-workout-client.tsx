@@ -504,22 +504,10 @@ export function OfflineWorkoutClient({
               onAdd={(name) => {
                 void queue(operation("addExercise", { tempWorkoutExerciseId: createId("exercise"), name }));
               }}
-            >
-              <div className="flex gap-2">
-                <input className="h-14 min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20" name="name" placeholder="Bench Press" autoComplete="off" required />
-                <button
-                  className="h-14 rounded-2xl bg-lime-300 px-5 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
-                  aria-label="Add exercise"
-                >
-                  Add
-                </button>
-              </div>
-              {syncMode === "local" ? (
-                <p className="text-xs text-zinc-500">Exercise suggestions are disabled in browser-only preview mode.</p>
-              ) : suggestions.length > 0 ? (
-                <p className="text-xs text-zinc-500">Suggestions remain available from the last online load.</p>
-              ) : null}
-            </form>
+            />
+            {syncMode === "local" ? (
+              <p className="mt-3 text-xs text-zinc-500">Exercise suggestions are disabled in browser-only preview mode.</p>
+            ) : null}
           </section>
         ) : null}
 
