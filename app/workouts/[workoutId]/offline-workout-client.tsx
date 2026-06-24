@@ -18,6 +18,7 @@ type OfflineWorkoutClientProps = {
   suggestions: ExerciseSuggestion[];
   focusedExerciseId?: string;
   finishError?: string;
+  syncMode?: "server" | "local";
 };
 
 type SyncState = "online" | "offline" | "syncing" | "pending";
@@ -332,7 +333,13 @@ function MetricFields({ metrics = [], autoFocus = false }: { metrics?: OfflineMe
   );
 }
 
-export function OfflineWorkoutClient({ initialSnapshot, suggestions, focusedExerciseId, finishError }: OfflineWorkoutClientProps) {
+export function OfflineWorkoutClient({
+  initialSnapshot,
+  suggestions,
+  focusedExerciseId,
+  finishError,
+  syncMode = "server",
+}: OfflineWorkoutClientProps) {
   const [snapshot, setSnapshot] = useState(initialSnapshot);
   const [pendingCount, setPendingCount] = useState(0);
   const [syncState, setSyncState] = useState<SyncState>(typeof navigator === "undefined" || navigator.onLine ? "online" : "offline");
@@ -341,6 +348,12 @@ export function OfflineWorkoutClient({ initialSnapshot, suggestions, focusedExer
   const canFinishWorkout = snapshot.exercises.length > 0 && snapshot.exercises.every((entry) => entry.sets.length > 0);
 
   const syncPending = useCallback(async () => {
+    if (syncMode === "local") {
+      setPendingCount(0);
+      setSyncState("online");
+      return;
+    }
+
     if (!navigator.onLine) {
       setSyncState("offline");
       return;
@@ -375,13 +388,20 @@ export function OfflineWorkoutClient({ initialSnapshot, suggestions, focusedExer
     } catch {
       setSyncState("pending");
     }
-  }, [snapshot.id]);
+  }, [snapshot.id, syncMode]);
 
   async function queue(item: OfflineWorkoutOperation) {
     const nextSnapshot = applyOperation(snapshot, item);
 
     setSnapshot(nextSnapshot);
     await saveWorkoutSnapshot(nextSnapshot);
+
+    if (syncMode === "local") {
+      setPendingCount(0);
+      setSyncState("online");
+      return;
+    }
+
     await addPendingOperation(snapshot.id, item);
     const operations = await getPendingOperations(snapshot.id);
     setPendingCount(operations.length);
@@ -433,6 +453,12 @@ export function OfflineWorkoutClient({ initialSnapshot, suggestions, focusedExer
   return (
     <main className="min-h-screen bg-zinc-950 px-4 py-5 text-zinc-50">
       <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
+        {syncMode === "local" ? (
+          <div className="rounded-2xl border border-lime-300/30 bg-lime-300/10 p-4 text-sm font-semibold text-lime-100">
+            Preview mode: changes are saved only in this browser and never sent to Postgres.
+          </div>
+        ) : null}
+
         <header className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/20">
           <Link href="/" className="text-sm font-bold text-lime-300">← Back to workouts</Link>
 
@@ -479,6 +505,9 @@ export function OfflineWorkoutClient({ initialSnapshot, suggestions, focusedExer
                 void queue(operation("addExercise", { tempWorkoutExerciseId: createId("exercise"), name }));
               }}
             />
+            {syncMode === "local" ? (
+              <p className="mt-3 text-xs text-zinc-500">Exercise suggestions are disabled in browser-only preview mode.</p>
+            ) : null}
           </section>
         ) : null}
 

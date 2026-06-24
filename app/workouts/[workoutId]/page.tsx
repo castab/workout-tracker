@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { isDemoMode } from "@/app/demo-mode";
 import { LocalDateTime } from "@/app/local-date-time";
 import type { ExerciseSuggestion } from "@/app/workouts/[workoutId]/add-exercise-form";
+import { DemoWorkoutClient } from "@/app/workouts/[workoutId]/demo-workout-client";
 import { OfflineWorkoutClient } from "@/app/workouts/[workoutId]/offline-workout-client";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -75,9 +77,14 @@ async function getExerciseSuggestions(userId: string): Promise<ExerciseSuggestio
 }
 
 export default async function WorkoutPage({ params, searchParams }: WorkoutPageProps) {
+  const { workoutId } = await params;
+
+  if (isDemoMode()) {
+    return <DemoWorkoutClient workoutId={workoutId} />;
+  }
+
   const user = await requireUser();
 
-  const { workoutId } = await params;
   const resolvedSearchParams = await searchParams;
   const focusedExercise = resolvedSearchParams.focusExercise;
   const focusedExerciseId = Array.isArray(focusedExercise) ? focusedExercise[0] : focusedExercise;

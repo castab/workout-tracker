@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isDemoMode } from "@/app/demo-mode";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getWorkoutSnapshot } from "@/lib/workout-snapshot";
@@ -27,6 +28,10 @@ async function activeWorkoutExists(workoutId: string, userId: string) {
 }
 
 export async function POST(request: Request, context: RouteContext) {
+  if (isDemoMode()) {
+    return NextResponse.json({ error: "Sync is disabled in demo mode." }, { status: 404 });
+  }
+
   const user = await requireUser();
 
   const { workoutId } = await context.params;

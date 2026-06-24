@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { isDemoMode } from "@/app/demo-mode";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { minimumPasswordLength } from "@/lib/users";
@@ -37,6 +39,10 @@ const statusMessages: Record<string, string> = {
 };
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
+  if (isDemoMode()) {
+    redirect("/");
+  }
+
   const user = await requireUser();
   const users = user.role === "ADMIN"
     ? await prisma.user.findMany({ orderBy: [{ role: "desc" }, { username: "asc" }] })
