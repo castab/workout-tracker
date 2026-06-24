@@ -148,6 +148,16 @@ Operational notes:
 - If sync fails, queued changes remain in IndexedDB and retry when the app is online again.
 - Push notifications are intentionally not implemented; the app does not request notification permission or require VAPID keys.
 
+## Browser-Only Demo Mode
+
+Set `NEXT_PUBLIC_DEMO_MODE=true` or `APP_MODE=demo` to run branch previews without auth or Postgres access.
+
+- `/` renders a local preview home page instead of requiring a signed-in user.
+- Workouts are saved to the browser's IndexedDB using the same snapshot shape as offline workout entry.
+- `/workouts/[workoutId]` reuses the active workout UI, but changes stay local and never call the sync API.
+- `/login` and `/settings` redirect back to `/` in demo mode.
+- Demo data is per browser/device and can be cleared by the browser at any time.
+
 ## Deployment
 
 Vercel deployments are intentionally restricted by `vercel.json`:

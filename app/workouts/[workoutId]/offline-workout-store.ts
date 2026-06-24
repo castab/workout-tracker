@@ -62,6 +62,10 @@ export async function getCachedWorkoutSnapshot(workoutId: string) {
   return withStore<WorkoutSnapshot>(snapshotStore, "readonly", (store) => store.get(workoutId));
 }
 
+export async function getAllCachedWorkoutSnapshots() {
+  return withStore<WorkoutSnapshot[]>(snapshotStore, "readonly", (store) => store.getAll());
+}
+
 export async function addPendingOperation(workoutId: string, operation: OfflineWorkoutOperation) {
   await withStore(operationStore, "readwrite", (store) => store.put({ ...operation, workoutId }));
 }

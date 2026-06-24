@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { DemoHomeClient } from "@/app/demo-home-client";
+import { isDemoMode } from "@/app/demo-mode";
 import { logoutAction } from "@/app/login/actions";
 import { LocalDateTime } from "@/app/local-date-time";
 import { createWorkoutAction } from "@/app/workouts/actions";
@@ -21,6 +23,10 @@ function WorkoutDate({ date }: { date: Date }) {
 }
 
 export default async function Home() {
+  if (isDemoMode()) {
+    return <DemoHomeClient />;
+  }
+
   const user = await requireUser();
   const workouts = await prisma.workout.findMany({
     where: { userId: user.id },

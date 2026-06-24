@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { isDemoMode } from "@/app/demo-mode";
 import { ensureInitialAdminUser, getCurrentUser } from "@/lib/auth";
 import { loginAction } from "./actions";
 
@@ -18,6 +19,10 @@ const statusMessages: Record<string, string> = {
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
+  if (isDemoMode()) {
+    redirect("/");
+  }
+
   const user = await getCurrentUser();
 
   if (user) {
