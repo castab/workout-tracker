@@ -168,6 +168,8 @@ Vercel deployments are intentionally restricted by `vercel.json`:
 - `dev` is allowed for development deployments.
 - All other branches are blocked from automatic Vercel deployments.
 
+The Vercel build command should be `npm run vercel:build`. This runs `prisma generate`, skips `prisma migrate deploy` in demo mode, and runs migrations only for database-backed deployments.
+
 ## Code Layout
 
 - `app/page.tsx` lists recent workouts and starts new workouts.

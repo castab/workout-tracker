@@ -8,6 +8,7 @@
     "dev": "next dev",
     "prepwa:dev": "dotenv -e .env.development -- tsx scripts/start-postgres.ts",
     "pwa:dev": "dotenv -e .env.development -e .env.pwa.development -- next dev --experimental-https",
+    "vercel:build": "tsx scripts/vercel-build.ts",
     "prebuild": "prisma generate",
     "build": "next build",
     "start": "next start",
