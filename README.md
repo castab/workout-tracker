@@ -156,6 +156,8 @@ Set `NEXT_PUBLIC_DEMO_MODE=true` or `APP_MODE=demo` to run branch previews witho
 - Workouts are saved to the browser's IndexedDB using the same snapshot shape as offline workout entry.
 - `/workouts/[workoutId]` reuses the active workout UI, but changes stay local and never call the sync API.
 - `/login` and `/settings` redirect back to `/` in demo mode.
+- `prisma generate` uses a dummy datasource URL in demo mode, so preview builds do not need `DATABASE_DIRECT_URL`.
+- `npm run prisma:migrate` exits without touching a database in demo mode.
 - Demo data is per browser/device and can be cleared by the browser at any time.
 
 ## Deployment
