@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ExerciseSuggestion } from "@/app/workouts/[workoutId]/add-exercise-form";
 import { PencilIcon, TrashIcon } from "./workout-icons";
 import {
@@ -44,6 +44,17 @@ function formatDate(value: string) {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function formatLastUsed(lastUsedAt: string) {
+  const daysAgo = Math.floor((Date.now() - new Date(lastUsedAt).getTime()) / 86_400_000);
+
+  if (daysAgo <= 0) return "today";
+  if (daysAgo === 1) return "yesterday";
+  if (daysAgo < 14) return `${daysAgo}d ago`;
+  if (daysAgo < 60) return `${Math.floor(daysAgo / 7)}w ago`;
+
+  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(lastUsedAt));
 }
 
 function formatMetric(metric: OfflineMetric) {
@@ -181,6 +192,101 @@ function StatusBanner({ state, pendingCount }: { state: SyncState; pendingCount:
     <div className="rounded-2xl border border-lime-300/30 bg-lime-300/10 p-4 text-sm font-semibold text-lime-100">
       {text}
     </div>
+  );
+}
+
+function AddOfflineExerciseForm({
+  onAdd,
+  suggestions,
+}: {
+  onAdd: (name: string) => void;
+  suggestions: ExerciseSuggestion[];
+}) {
+  const [name, setName] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const query = name.trim().toLowerCase();
+  const matches = query.length >= 3
+    ? suggestions
+        .filter((suggestion) => {
+          const suggestionName = suggestion.name.toLowerCase();
+
+          return suggestionName.includes(query) && suggestionName !== query;
+        })
+        .sort((a, b) => {
+          const aStartsWith = a.name.toLowerCase().startsWith(query);
+          const bStartsWith = b.name.toLowerCase().startsWith(query);
+
+          if (aStartsWith !== bStartsWith) return aStartsWith ? -1 : 1;
+
+          return suggestions.indexOf(a) - suggestions.indexOf(b);
+        })
+        .slice(0, 5)
+    : [];
+
+  function addExercise(nextName: string) {
+    const trimmedName = nextName.trim();
+
+    if (!trimmedName) return;
+
+    onAdd(trimmedName);
+    setName("");
+    inputRef.current?.focus();
+  }
+
+  return (
+    <form
+      className="mt-4 space-y-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        addExercise(name);
+      }}
+    >
+      <div className="flex gap-2">
+        <input
+          ref={inputRef}
+          className="h-14 min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
+          name="name"
+          placeholder="Bench Press"
+          autoComplete="off"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          required
+        />
+        <button
+          className="h-14 rounded-2xl bg-lime-300 px-5 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
+          aria-label="Add exercise"
+        >
+          Add
+        </button>
+      </div>
+
+      {matches.length > 0 ? (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-2">
+          <p className="px-2 pb-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
+            Suggestions
+          </p>
+          <div className="space-y-1">
+            {matches.map((suggestion) => (
+              <button
+                key={suggestion.id}
+                type="button"
+                className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl px-3 text-left transition hover:bg-zinc-900 focus:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-lime-300/20"
+                onClick={() => addExercise(suggestion.name)}
+              >
+                <span className="font-bold text-zinc-100">{suggestion.name}</span>
+                <span className="shrink-0 text-xs font-semibold text-zinc-500">
+                  Used {suggestion.usageCount}x - {formatLastUsed(suggestion.lastUsedAt)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {suggestions.length > 0 ? (
+        <p className="text-xs text-zinc-500">Suggestions remain available from the last online load.</p>
+      ) : null}
+    </form>
   );
 }
 
@@ -393,17 +499,9 @@ export function OfflineWorkoutClient({
         {!snapshot.endedAt ? (
           <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
             <h2 className="text-xl font-black">Add exercise</h2>
-            <form
-              className="mt-4 space-y-3"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const form = event.currentTarget;
-                const formData = new FormData(form);
-                const name = String(formData.get("name") ?? "").trim();
-
-                if (!name) return;
-
-                form.reset();
+            <AddOfflineExerciseForm
+              suggestions={suggestions}
+              onAdd={(name) => {
                 void queue(operation("addExercise", { tempWorkoutExerciseId: createId("exercise"), name }));
               }}
             >
