@@ -1,0 +1,1 @@
+ALTER TABLE "WorkoutExercise" ADD COLUMN "variant" TEXT NOT NULL DEFAULT '';

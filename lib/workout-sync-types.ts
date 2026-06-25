@@ -11,6 +11,7 @@ export type WorkoutSnapshot = {
   exercises: {
     id: string;
     order: number;
+    variant: string;
     exercise: { name: string };
     sets: {
       id: string;
@@ -25,7 +26,7 @@ export type OfflineWorkoutOperation =
       id: string;
       type: "addExercise";
       createdAt: string;
-      payload: { tempWorkoutExerciseId: string; name: string };
+      payload: { tempWorkoutExerciseId: string; name: string; variant: string };
     }
   | {
       id: string;
@@ -38,6 +39,12 @@ export type OfflineWorkoutOperation =
       type: "updateExerciseName";
       createdAt: string;
       payload: { workoutExerciseId: string; name: string };
+    }
+  | {
+      id: string;
+      type: "updateExerciseVariant";
+      createdAt: string;
+      payload: { workoutExerciseId: string; variant: string };
     }
   | {
       id: string;
