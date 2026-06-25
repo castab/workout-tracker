@@ -257,24 +257,16 @@ function AddOfflineExerciseForm({
       }}
     >
       <div className="space-y-2">
-        <input
-          ref={inputRef}
-          className="h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
-          name="name"
-          placeholder="Bench Press"
-          autoComplete="off"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          required
-        />
         <div className="flex gap-2">
           <input
+            ref={inputRef}
             className="h-14 min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
-            name="variant"
-            placeholder="Method, e.g. Dumbbells"
+            name="name"
+            placeholder="Bench Press"
             autoComplete="off"
-            value={variant}
-            onChange={(event) => setVariant(event.target.value)}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
           />
           <button
             className="h-14 rounded-2xl bg-lime-300 px-5 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
@@ -283,6 +275,14 @@ function AddOfflineExerciseForm({
             Add
           </button>
         </div>
+        <input
+          className="h-10 w-full rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 text-sm font-semibold text-zinc-200 outline-none transition placeholder:text-zinc-600 focus:border-lime-300/70 focus:ring-2 focus:ring-lime-300/10"
+          name="variant"
+          placeholder="Method: Dumbbells, Machine, Treadmill..."
+          autoComplete="off"
+          value={variant}
+          onChange={(event) => setVariant(event.target.value)}
+        />
       </div>
 
       {matches.length > 0 ? (
@@ -481,7 +481,7 @@ export function OfflineWorkoutClient({
       <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
         {syncMode === "local" ? (
           <div className="rounded-2xl border border-lime-300/30 bg-lime-300/10 p-4 text-sm font-semibold text-lime-100">
-            Preview mode: changes are saved only in this browser and never sent to Postgres.
+            Preview mode: changes are temporary and are never permanently persisted.
           </div>
         ) : null}
 
