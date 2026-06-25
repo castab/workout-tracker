@@ -22,6 +22,7 @@ type OfflineWorkoutClientProps = {
 };
 
 type SyncState = "online" | "offline" | "syncing" | "pending";
+type StartingWeight = ExerciseSuggestion["startingWeights"][number];
 
 function createId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
@@ -65,6 +66,41 @@ function formatMetric(metric: OfflineMetric) {
   if (metric.type === "LAPS") return `${metric.value} laps`;
 
   return `${metric.value} ${metric.unit.toLowerCase()}`;
+}
+
+function formatWeight(value: string, unit: string) {
+  return `${value} ${unit.toLowerCase()}`;
+}
+
+function findStartingWeight(suggestions: ExerciseSuggestion[], name: string, variant: string) {
+  const suggestion = suggestions.find((item) => item.name.toLowerCase() === name.trim().toLowerCase());
+
+  if (!suggestion) return null;
+
+  const normalizedVariant = variant.trim().toLowerCase();
+
+  if (normalizedVariant) {
+    return suggestion.startingWeights.find((item) => item.variant.toLowerCase() === normalizedVariant)
+      ?? suggestion.startingWeights.find((item) => item.variant === "")
+      ?? suggestion.startingWeights[0]
+      ?? null;
+  }
+
+  return suggestion.startingWeights.find((item) => item.variant === "") ?? suggestion.startingWeights[0] ?? null;
+}
+
+function applyStartingWeight(form: HTMLFormElement | null, startingWeight: StartingWeight) {
+  const weightInput = form?.elements.namedItem("weight");
+  const weightUnitSelect = form?.elements.namedItem("weightUnit");
+
+  if (weightInput instanceof HTMLInputElement) {
+    weightInput.value = startingWeight.value;
+    weightInput.focus();
+  }
+
+  if (weightUnitSelect instanceof HTMLSelectElement) {
+    weightUnitSelect.value = startingWeight.unit;
+  }
 }
 
 function metricValue(formData: FormData, key: string) {
@@ -218,6 +254,7 @@ function AddOfflineExerciseForm({
   const [variant, setVariant] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const query = name.trim().toLowerCase();
+  const startingWeight = findStartingWeight(suggestions, name, variant);
   const matches = query.length >= 3
     ? suggestions
         .filter((suggestion) => {
@@ -285,25 +322,42 @@ function AddOfflineExerciseForm({
         />
       </div>
 
+      {startingWeight ? (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-lime-300/20 bg-lime-300/10 px-3 py-2">
+          <p className="text-sm font-semibold text-lime-100">
+            Last start: {formatWeight(startingWeight.value, startingWeight.unit)}
+          </p>
+          <p className="shrink-0 text-xs font-semibold text-lime-100/70">
+            {formatLastUsed(startingWeight.lastUsedAt)}
+          </p>
+        </div>
+      ) : null}
+
       {matches.length > 0 ? (
         <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-2">
           <p className="px-2 pb-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
             Suggestions
           </p>
           <div className="space-y-1">
-            {matches.map((suggestion) => (
-              <button
-                key={suggestion.id}
-                type="button"
-                className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl px-3 text-left transition hover:bg-zinc-900 focus:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-lime-300/20"
-                onClick={() => addExercise(suggestion.name)}
-              >
-                <span className="font-bold text-zinc-100">{suggestion.name}</span>
-                <span className="shrink-0 text-xs font-semibold text-zinc-500">
-                  Used {suggestion.usageCount}x - {formatLastUsed(suggestion.lastUsedAt)}
-                </span>
-              </button>
-            ))}
+            {matches.map((suggestion) => {
+              const startingWeight = findStartingWeight(suggestions, suggestion.name, variant);
+
+              return (
+                <button
+                  key={suggestion.id}
+                  type="button"
+                  className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl px-3 text-left transition hover:bg-zinc-900 focus:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-lime-300/20"
+                  onClick={() => addExercise(suggestion.name)}
+                >
+                  <span className="font-bold text-zinc-100">{suggestion.name}</span>
+                  <span className="shrink-0 text-xs font-semibold text-zinc-500">
+                    {startingWeight
+                      ? `Last start ${formatWeight(startingWeight.value, startingWeight.unit)} - ${formatLastUsed(startingWeight.lastUsedAt)}`
+                      : `Used ${suggestion.usageCount}x - ${formatLastUsed(suggestion.lastUsedAt)}`}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       ) : null}
@@ -315,7 +369,15 @@ function AddOfflineExerciseForm({
   );
 }
 
-function MetricFields({ metrics = [], autoFocus = false }: { metrics?: OfflineMetric[]; autoFocus?: boolean }) {
+function MetricFields({
+  metrics = [],
+  autoFocus = false,
+  startingWeight = null,
+}: {
+  metrics?: OfflineMetric[];
+  autoFocus?: boolean;
+  startingWeight?: StartingWeight | null;
+}) {
   const reps = metric(metrics, "REPS");
   const weight = metric(metrics, "WEIGHT");
   const time = metric(metrics, "TIME");
@@ -324,6 +386,20 @@ function MetricFields({ metrics = [], autoFocus = false }: { metrics?: OfflineMe
 
   return (
     <div className="grid grid-cols-2 gap-2">
+      {startingWeight ? (
+        <div className="col-span-2 flex items-center justify-between gap-3 rounded-xl border border-lime-300/20 bg-lime-300/10 px-3 py-2">
+          <p className="text-sm font-semibold text-lime-100">
+            Last start: {formatWeight(startingWeight.value, startingWeight.unit)}
+          </p>
+          <button
+            type="button"
+            className="rounded-full bg-lime-300 px-3 py-1.5 text-xs font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
+            onClick={(event) => applyStartingWeight(event.currentTarget.form, startingWeight)}
+          >
+            Use
+          </button>
+        </div>
+      ) : null}
       <input className="metric-input" name="reps" inputMode="decimal" placeholder="Reps" defaultValue={reps?.value ?? ""} autoFocus={autoFocus} />
       <div className="flex gap-1">
         <input className="metric-input" name="weight" inputMode="decimal" placeholder="Weight" defaultValue={weight?.value ?? ""} />
@@ -544,6 +620,7 @@ export function OfflineWorkoutClient({
           </section>
         ) : snapshot.exercises.map((entry) => {
           const needsEntry = !snapshot.endedAt && entry.sets.length === 0;
+          const startingWeight = findStartingWeight(suggestions, entry.exercise.name, entry.variant);
 
           return (
             <section key={entry.id} id={`exercise-${entry.id}`} className={`rounded-3xl border bg-zinc-900 p-5 shadow-xl shadow-black/10 ${needsEntry ? "border-amber-300/50" : "border-zinc-800"}`}>
@@ -705,7 +782,7 @@ export function OfflineWorkoutClient({
                   }}
                 >
                   <p className="mb-3 text-sm font-black text-zinc-300">Quick add set</p>
-                  <MetricFields autoFocus={entry.id === focusedExerciseId} />
+                  <MetricFields autoFocus={entry.id === focusedExerciseId} startingWeight={startingWeight} />
                 </form>
               ) : null}
             </section>

@@ -53,7 +53,15 @@ type ExerciseSuggestionRow = {
   lastUsedAt: Date;
 };
 
-async function getExerciseSuggestions(userId: string): Promise<ExerciseSuggestion[]> {
+type StartingWeight = ExerciseSuggestion["startingWeights"][number];
+
+const weightUnits: StartingWeight["unit"][] = ["LB", "KG"];
+
+function isWeightUnit(unit: string): unit is StartingWeight["unit"] {
+  return weightUnits.includes(unit as StartingWeight["unit"]);
+}
+
+async function getExerciseSuggestions(userId: string, workoutId: string): Promise<ExerciseSuggestion[]> {
   const suggestions = await prisma.$queryRaw<ExerciseSuggestionRow[]>`
     SELECT
       e.id,
@@ -65,14 +73,90 @@ async function getExerciseSuggestions(userId: string): Promise<ExerciseSuggestio
     JOIN "Workout" w ON w.id = we."workoutId"
     WHERE we."createdAt" >= NOW() - INTERVAL '90 days'
       AND w."userId" = ${userId}
+      AND w.id <> ${workoutId}
     GROUP BY e.id, e.name
     ORDER BY COUNT(*) DESC, MAX(we."createdAt") DESC, e.name ASC
     LIMIT 50
   `;
 
+  const exerciseIds = suggestions.map((suggestion) => suggestion.id);
+
+  if (exerciseIds.length === 0) {
+    return [];
+  }
+
+  const startingWeightRows = await prisma.workoutExercise.findMany({
+    where: {
+      exerciseId: { in: exerciseIds },
+      workout: {
+        userId,
+        id: { not: workoutId },
+      },
+      sets: {
+        some: {
+          metrics: {
+            some: {
+              type: "WEIGHT",
+              unit: { in: weightUnits },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 300,
+    include: {
+      sets: {
+        orderBy: { order: "asc" },
+        include: {
+          metrics: {
+            where: {
+              type: "WEIGHT",
+              unit: { in: weightUnits },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const startingWeightsByExerciseId = new Map<string, StartingWeight[]>();
+  const seenExerciseVariants = new Set<string>();
+
+  for (const entry of startingWeightRows) {
+    const firstWeightMetric = entry.sets
+      .flatMap((set) => set.metrics)
+      .find((metric) => isWeightUnit(metric.unit));
+
+    if (!firstWeightMetric) continue;
+
+    const weightUnit = firstWeightMetric.unit;
+
+    if (!isWeightUnit(weightUnit)) continue;
+
+    const variant = entry.variant.trim();
+    const key = `${entry.exerciseId}:${variant.toLowerCase()}`;
+
+    if (seenExerciseVariants.has(key)) continue;
+
+    seenExerciseVariants.add(key);
+
+    const startingWeights = startingWeightsByExerciseId.get(entry.exerciseId) ?? [];
+
+    startingWeights.push({
+      value: formatMetricValue(firstWeightMetric.value),
+      unit: weightUnit,
+      variant,
+      lastUsedAt: entry.createdAt.toISOString(),
+    });
+
+    startingWeightsByExerciseId.set(entry.exerciseId, startingWeights);
+  }
+
   return suggestions.map((suggestion) => ({
     ...suggestion,
     lastUsedAt: suggestion.lastUsedAt.toISOString(),
+    startingWeights: startingWeightsByExerciseId.get(suggestion.id) ?? [],
   }));
 }
 
@@ -107,7 +191,7 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
         },
       },
     }),
-    getExerciseSuggestions(user.id),
+    getExerciseSuggestions(user.id, workoutId),
   ]);
 
   if (!workout || workout.userId !== user.id) {
