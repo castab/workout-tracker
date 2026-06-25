@@ -105,6 +105,7 @@ function applyOperation(snapshot: WorkoutSnapshot, item: OfflineWorkoutOperation
         {
           id: item.payload.tempWorkoutExerciseId,
           order: nextOrder,
+          variant: item.payload.variant ?? "",
           exercise: { name: item.payload.name },
           sets: [],
         },
@@ -126,6 +127,17 @@ function applyOperation(snapshot: WorkoutSnapshot, item: OfflineWorkoutOperation
       exercises: snapshot.exercises.map((entry) =>
         entry.id === item.payload.workoutExerciseId
           ? { ...entry, exercise: { name: item.payload.name } }
+          : entry,
+      ),
+    };
+  }
+
+  if (item.type === "updateExerciseVariant") {
+    return {
+      ...snapshot,
+      exercises: snapshot.exercises.map((entry) =>
+        entry.id === item.payload.workoutExerciseId
+          ? { ...entry, variant: item.payload.variant }
           : entry,
       ),
     };
@@ -199,10 +211,11 @@ function AddOfflineExerciseForm({
   onAdd,
   suggestions,
 }: {
-  onAdd: (name: string) => void;
+  onAdd: (name: string, variant: string) => void;
   suggestions: ExerciseSuggestion[];
 }) {
   const [name, setName] = useState("");
+  const [variant, setVariant] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const query = name.trim().toLowerCase();
   const matches = query.length >= 3
@@ -223,13 +236,15 @@ function AddOfflineExerciseForm({
         .slice(0, 5)
     : [];
 
-  function addExercise(nextName: string) {
+  function addExercise(nextName: string, nextVariant = variant) {
     const trimmedName = nextName.trim();
+    const trimmedVariant = nextVariant.trim();
 
     if (!trimmedName) return;
 
-    onAdd(trimmedName);
+    onAdd(trimmedName, trimmedVariant);
     setName("");
+    setVariant("");
     inputRef.current?.focus();
   }
 
@@ -241,23 +256,33 @@ function AddOfflineExerciseForm({
         addExercise(name);
       }}
     >
-      <div className="flex gap-2">
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          <input
+            ref={inputRef}
+            className="h-14 min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
+            name="name"
+            placeholder="Bench Press"
+            autoComplete="off"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+          />
+          <button
+            className="h-14 rounded-2xl bg-lime-300 px-5 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
+            aria-label="Add exercise"
+          >
+            Add
+          </button>
+        </div>
         <input
-          ref={inputRef}
-          className="h-14 min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
-          name="name"
-          placeholder="Bench Press"
+          className="h-10 w-full rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 text-sm font-semibold text-zinc-200 outline-none transition placeholder:text-zinc-600 focus:border-lime-300/70 focus:ring-2 focus:ring-lime-300/10"
+          name="variant"
+          placeholder="Method: Dumbbells, Machine, Treadmill..."
           autoComplete="off"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          required
+          value={variant}
+          onChange={(event) => setVariant(event.target.value)}
         />
-        <button
-          className="h-14 rounded-2xl bg-lime-300 px-5 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
-          aria-label="Add exercise"
-        >
-          Add
-        </button>
       </div>
 
       {matches.length > 0 ? (
@@ -344,6 +369,7 @@ export function OfflineWorkoutClient({
   const [pendingCount, setPendingCount] = useState(0);
   const [syncState, setSyncState] = useState<SyncState>(typeof navigator === "undefined" || navigator.onLine ? "online" : "offline");
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
+  const [editingVariantExerciseId, setEditingVariantExerciseId] = useState<string | null>(null);
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
   const canFinishWorkout = snapshot.exercises.length > 0 && snapshot.exercises.every((entry) => entry.sets.length > 0);
 
@@ -455,7 +481,7 @@ export function OfflineWorkoutClient({
       <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
         {syncMode === "local" ? (
           <div className="rounded-2xl border border-lime-300/30 bg-lime-300/10 p-4 text-sm font-semibold text-lime-100">
-            Preview mode: changes are saved only in this browser and never sent to Postgres.
+            Preview mode: changes are temporary and are never permanently persisted.
           </div>
         ) : null}
 
@@ -501,8 +527,8 @@ export function OfflineWorkoutClient({
             <h2 className="text-xl font-black">Add exercise</h2>
             <AddOfflineExerciseForm
               suggestions={suggestions}
-              onAdd={(name) => {
-                void queue(operation("addExercise", { tempWorkoutExerciseId: createId("exercise"), name }));
+              onAdd={(name, variant) => {
+                void queue(operation("addExercise", { tempWorkoutExerciseId: createId("exercise"), name, variant }));
               }}
             />
             {syncMode === "local" ? (
@@ -562,6 +588,44 @@ export function OfflineWorkoutClient({
                       ) : null}
                     </div>
                   )}
+                  {editingVariantExerciseId === entry.id ? (
+                    <form
+                      className="mt-3 flex gap-2"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const formData = new FormData(event.currentTarget);
+                        const variant = String(formData.get("variant") ?? "").trim();
+
+                        setEditingVariantExerciseId(null);
+                        void queue(operation("updateExerciseVariant", { workoutExerciseId: entry.id, variant }));
+                      }}
+                    >
+                      <input className="h-11 min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20" name="variant" defaultValue={entry.variant} autoComplete="off" placeholder="Dumbbells, Machine, Treadmill..." />
+                      <button
+                        className="h-11 rounded-2xl bg-lime-300 px-4 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
+                        aria-label={`Save ${entry.exercise.name} method`}
+                      >
+                        Save
+                      </button>
+                    </form>
+                  ) : entry.variant || !snapshot.endedAt ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <p className={entry.variant ? "text-sm font-bold text-zinc-300" : "text-sm font-semibold text-zinc-500"}>
+                        {entry.variant || "Add method"}
+                      </p>
+                      {!snapshot.endedAt ? (
+                        <button
+                          type="button"
+                          className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-zinc-700 text-zinc-400 transition hover:border-lime-300 hover:text-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/20"
+                          aria-label={`Edit ${entry.exercise.name} method`}
+                          title={`Edit ${entry.exercise.name} method`}
+                          onClick={() => setEditingVariantExerciseId(entry.id)}
+                        >
+                          <PencilIcon />
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
 
                 {!snapshot.endedAt ? (

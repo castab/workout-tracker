@@ -32,6 +32,7 @@ export function serializeWorkoutSnapshot(workout: WorkoutRow): WorkoutSnapshot {
     exercises: workout.exercises.map((entry) => ({
       id: entry.id,
       order: entry.order,
+      variant: entry.variant,
       exercise: { name: entry.exercise.name },
       sets: entry.sets.map((set) => ({
         id: set.id,

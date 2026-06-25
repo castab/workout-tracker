@@ -192,6 +192,9 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
                       Exercise {entry.order + 1}
                     </p>
                     <h2 className="mt-2 text-2xl font-black">{entry.exercise.name}</h2>
+                    {entry.variant ? (
+                      <p className="mt-2 text-sm font-bold text-zinc-300">{entry.variant}</p>
+                    ) : null}
                   </div>
 
                   {isActiveWorkout ? null : null}

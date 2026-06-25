@@ -70,7 +70,7 @@ export function DemoHomeClient() {
           </p>
           <h1 className="mt-3 text-3xl font-black tracking-tight">Branch preview mode</h1>
           <p className="mt-2 text-sm leading-6 text-zinc-400">
-            This preview stores workouts only in this browser. No login, sessions, or Postgres writes are used.
+            This preview stores workouts only in this browser. No login, sessions, or database writes are used.
           </p>
         </header>
 
