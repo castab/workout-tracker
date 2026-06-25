@@ -80,7 +80,10 @@ function findStartingWeight(suggestions: ExerciseSuggestion[], name: string, var
   const normalizedVariant = variant.trim().toLowerCase();
 
   if (normalizedVariant) {
-    return suggestion.startingWeights.find((item) => item.variant.toLowerCase() === normalizedVariant) ?? null;
+    return suggestion.startingWeights.find((item) => item.variant.toLowerCase() === normalizedVariant)
+      ?? suggestion.startingWeights.find((item) => item.variant === "")
+      ?? suggestion.startingWeights[0]
+      ?? null;
   }
 
   return suggestion.startingWeights.find((item) => item.variant === "") ?? suggestion.startingWeights[0] ?? null;
@@ -251,6 +254,7 @@ function AddOfflineExerciseForm({
   const [variant, setVariant] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const query = name.trim().toLowerCase();
+  const startingWeight = findStartingWeight(suggestions, name, variant);
   const matches = query.length >= 3
     ? suggestions
         .filter((suggestion) => {
@@ -317,6 +321,17 @@ function AddOfflineExerciseForm({
           onChange={(event) => setVariant(event.target.value)}
         />
       </div>
+
+      {startingWeight ? (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-lime-300/20 bg-lime-300/10 px-3 py-2">
+          <p className="text-sm font-semibold text-lime-100">
+            Last start: {formatWeight(startingWeight.value, startingWeight.unit)}
+          </p>
+          <p className="shrink-0 text-xs font-semibold text-lime-100/70">
+            {formatLastUsed(startingWeight.lastUsedAt)}
+          </p>
+        </div>
+      ) : null}
 
       {matches.length > 0 ? (
         <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-2">
