@@ -7,6 +7,12 @@ export type ExerciseSuggestion = {
   name: string;
   usageCount: number;
   lastUsedAt: string;
+  startingWeights: {
+    value: string;
+    unit: "LB" | "KG";
+    variant: string;
+    lastUsedAt: string;
+  }[];
 };
 
 type AddExerciseFormProps = {
@@ -23,6 +29,10 @@ function formatLastUsed(lastUsedAt: string) {
   if (daysAgo < 60) return `${Math.floor(daysAgo / 7)}w ago`;
 
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(lastUsedAt));
+}
+
+function formatWeight(value: string, unit: string) {
+  return `${value} ${unit.toLowerCase()}`;
 }
 
 export function AddExerciseForm({ action, suggestions }: AddExerciseFormProps) {
@@ -75,27 +85,33 @@ export function AddExerciseForm({ action, suggestions }: AddExerciseFormProps) {
             Suggestions
           </p>
           <div className="space-y-1">
-            {matches.map((suggestion) => (
-              <button
-                key={suggestion.id}
-                type="button"
-                className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl px-3 text-left transition hover:bg-zinc-900 focus:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-lime-300/20"
-                onClick={() => {
-                  setName(suggestion.name);
+            {matches.map((suggestion) => {
+              const startingWeight = suggestion.startingWeights[0];
 
-                  if (inputRef.current) {
-                    inputRef.current.value = suggestion.name;
-                  }
+              return (
+                <button
+                  key={suggestion.id}
+                  type="button"
+                  className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl px-3 text-left transition hover:bg-zinc-900 focus:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-lime-300/20"
+                  onClick={() => {
+                    setName(suggestion.name);
 
-                  formRef.current?.requestSubmit();
-                }}
-              >
-                <span className="font-bold text-zinc-100">{suggestion.name}</span>
-                <span className="shrink-0 text-xs font-semibold text-zinc-500">
-                  Used {suggestion.usageCount}x - {formatLastUsed(suggestion.lastUsedAt)}
-                </span>
-              </button>
-            ))}
+                    if (inputRef.current) {
+                      inputRef.current.value = suggestion.name;
+                    }
+
+                    formRef.current?.requestSubmit();
+                  }}
+                >
+                  <span className="font-bold text-zinc-100">{suggestion.name}</span>
+                  <span className="shrink-0 text-xs font-semibold text-zinc-500">
+                    {startingWeight
+                      ? `Last start ${formatWeight(startingWeight.value, startingWeight.unit)} - ${formatLastUsed(startingWeight.lastUsedAt)}`
+                      : `Used ${suggestion.usageCount}x - ${formatLastUsed(suggestion.lastUsedAt)}`}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       ) : null}
