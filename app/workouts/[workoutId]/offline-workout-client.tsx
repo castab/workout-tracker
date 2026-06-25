@@ -131,6 +131,10 @@ function metric(metrics: OfflineMetric[], type: OfflineMetric["type"]) {
   return metrics.find((item) => item.type === type);
 }
 
+function hasRepsMetric(metrics: OfflineMetric[]) {
+  return metrics.some((item) => item.type === "REPS");
+}
+
 function applyOperation(snapshot: WorkoutSnapshot, item: OfflineWorkoutOperation): WorkoutSnapshot {
   if (item.type === "addExercise") {
     const nextOrder = Math.max(-1, ...snapshot.exercises.map((entry) => entry.order)) + 1;
@@ -373,10 +377,12 @@ function MetricFields({
   metrics = [],
   autoFocus = false,
   startingWeight = null,
+  onDismissStartingWeight,
 }: {
   metrics?: OfflineMetric[];
   autoFocus?: boolean;
   startingWeight?: StartingWeight | null;
+  onDismissStartingWeight?: () => void;
 }) {
   const reps = metric(metrics, "REPS");
   const weight = metric(metrics, "WEIGHT");
@@ -391,13 +397,27 @@ function MetricFields({
           <p className="text-sm font-semibold text-lime-100">
             Last start: {formatWeight(startingWeight.value, startingWeight.unit)}
           </p>
-          <button
-            type="button"
-            className="rounded-full bg-lime-300 px-3 py-1.5 text-xs font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
-            onClick={(event) => applyStartingWeight(event.currentTarget.form, startingWeight)}
-          >
-            Use
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              className="rounded-full bg-lime-300 px-3 py-1.5 text-xs font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
+              onClick={(event) => {
+                applyStartingWeight(event.currentTarget.form, startingWeight);
+                onDismissStartingWeight?.();
+              }}
+            >
+              Use
+            </button>
+            <button
+              type="button"
+              className="inline-flex size-7 items-center justify-center rounded-full border border-lime-300/30 text-sm font-black text-lime-100 transition hover:border-lime-200 hover:bg-lime-300/10 focus:outline-none focus:ring-2 focus:ring-lime-300/20"
+              aria-label="Dismiss starting weight suggestion"
+              title="Dismiss"
+              onClick={onDismissStartingWeight}
+            >
+              x
+            </button>
+          </div>
         </div>
       ) : null}
       <input className="metric-input" name="reps" inputMode="decimal" placeholder="Reps" defaultValue={reps?.value ?? ""} autoFocus={autoFocus} />
@@ -447,7 +467,18 @@ export function OfflineWorkoutClient({
   const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
   const [editingVariantExerciseId, setEditingVariantExerciseId] = useState<string | null>(null);
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
+  const [dismissedStartingWeightIds, setDismissedStartingWeightIds] = useState<Set<string>>(() => new Set());
   const canFinishWorkout = snapshot.exercises.length > 0 && snapshot.exercises.every((entry) => entry.sets.length > 0);
+
+  function dismissStartingWeight(workoutExerciseId: string) {
+    setDismissedStartingWeightIds((current) => {
+      const next = new Set(current);
+
+      next.add(workoutExerciseId);
+
+      return next;
+    });
+  }
 
   const syncPending = useCallback(async () => {
     if (syncMode === "local") {
@@ -620,7 +651,10 @@ export function OfflineWorkoutClient({
           </section>
         ) : snapshot.exercises.map((entry) => {
           const needsEntry = !snapshot.endedAt && entry.sets.length === 0;
-          const startingWeight = findStartingWeight(suggestions, entry.exercise.name, entry.variant);
+          const hasLoggedReps = entry.sets.some((set) => hasRepsMetric(set.metrics));
+          const startingWeight = hasLoggedReps || dismissedStartingWeightIds.has(entry.id)
+            ? null
+            : findStartingWeight(suggestions, entry.exercise.name, entry.variant);
 
           return (
             <section key={entry.id} id={`exercise-${entry.id}`} className={`rounded-3xl border bg-zinc-900 p-5 shadow-xl shadow-black/10 ${needsEntry ? "border-amber-300/50" : "border-zinc-800"}`}>
@@ -782,7 +816,11 @@ export function OfflineWorkoutClient({
                   }}
                 >
                   <p className="mb-3 text-sm font-black text-zinc-300">Quick add set</p>
-                  <MetricFields autoFocus={entry.id === focusedExerciseId} startingWeight={startingWeight} />
+                  <MetricFields
+                    autoFocus={entry.id === focusedExerciseId}
+                    startingWeight={startingWeight}
+                    onDismissStartingWeight={() => dismissStartingWeight(entry.id)}
+                  />
                 </form>
               ) : null}
             </section>
