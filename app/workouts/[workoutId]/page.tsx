@@ -61,7 +61,7 @@ function isWeightUnit(unit: string): unit is StartingWeight["unit"] {
   return weightUnits.includes(unit as StartingWeight["unit"]);
 }
 
-async function getExerciseSuggestions(userId: string): Promise<ExerciseSuggestion[]> {
+async function getExerciseSuggestions(userId: string, workoutId: string): Promise<ExerciseSuggestion[]> {
   const suggestions = await prisma.$queryRaw<ExerciseSuggestionRow[]>`
     SELECT
       e.id,
@@ -73,6 +73,7 @@ async function getExerciseSuggestions(userId: string): Promise<ExerciseSuggestio
     JOIN "Workout" w ON w.id = we."workoutId"
     WHERE we."createdAt" >= NOW() - INTERVAL '90 days'
       AND w."userId" = ${userId}
+      AND w.id <> ${workoutId}
     GROUP BY e.id, e.name
     ORDER BY COUNT(*) DESC, MAX(we."createdAt") DESC, e.name ASC
     LIMIT 50
@@ -89,7 +90,7 @@ async function getExerciseSuggestions(userId: string): Promise<ExerciseSuggestio
       exerciseId: { in: exerciseIds },
       workout: {
         userId,
-        endedAt: { not: null },
+        id: { not: workoutId },
       },
       sets: {
         some: {
@@ -190,7 +191,7 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
         },
       },
     }),
-    getExerciseSuggestions(user.id),
+    getExerciseSuggestions(user.id, workoutId),
   ]);
 
   if (!workout || workout.userId !== user.id) {
