@@ -572,14 +572,26 @@ export function OfflineWorkoutClient({
       setSyncState("offline");
     }
 
+    function handlePageShow() {
+      void syncPending();
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") void syncPending();
+    }
+
     void load();
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       isMounted = false;
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [initialSnapshot, syncPending]);
 
