@@ -13,6 +13,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:service-worker": "node --test test/service-worker.test.mjs",
     "db:up": "dotenv -e .env.development -- tsx scripts/start-postgres.ts",
     "db:down": "docker compose down",
     "db:seed": "dotenv -e .env.development -- prisma db seed",
