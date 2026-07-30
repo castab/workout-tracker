@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DemoHomeClient } from "@/app/demo-home-client";
 import { isDemoMode } from "@/app/demo-mode";
+import { Icon } from "@/app/material-icon";
 import { logoutAction } from "@/app/login/actions";
 import { LocalDateTime } from "@/app/local-date-time";
 import { createWorkoutAction } from "@/app/workouts/actions";
@@ -64,19 +65,7 @@ export default async function Home() {
                 aria-label="Settings"
                 title="Settings"
               >
-                <svg
-                  aria-hidden="true"
-                  className="size-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M9.7 3.4a2.4 2.4 0 0 1 4.6 0l.2.8a2.4 2.4 0 0 0 3.2 1.8l.8-.3a2.4 2.4 0 0 1 2.3 4l-.6.5a2.4 2.4 0 0 0 0 3.6l.6.5a2.4 2.4 0 0 1-2.3 4l-.8-.3a2.4 2.4 0 0 0-3.2 1.8l-.2.8a2.4 2.4 0 0 1-4.6 0l-.2-.8a2.4 2.4 0 0 0-3.2-1.8l-.8.3a2.4 2.4 0 0 1-2.3-4l.6-.5a2.4 2.4 0 0 0 0-3.6l-.6-.5a2.4 2.4 0 0 1 2.3-4l.8.3a2.4 2.4 0 0 0 3.2-1.8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
+                <Icon name="settings" size={20} />
               </Link>
 
               <form action={logoutAction}>
@@ -85,20 +74,7 @@ export default async function Home() {
                   aria-label="Logout"
                   title="Logout"
                 >
-                  <svg
-                    aria-hidden="true"
-                    className="size-5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M14 7V5a2 2 0 0 0-2-2H5v18h7a2 2 0 0 0 2-2v-2" />
-                    <path d="M9 12h12" />
-                    <path d="m17 8 4 4-4 4" />
-                  </svg>
+                  <Icon name="logout" size={20} />
                 </button>
               </form>
             </div>
@@ -138,19 +114,7 @@ export default async function Home() {
                   aria-label="New workout"
                   title="New workout"
                 >
-                  <svg
-                    aria-hidden="true"
-                    className="size-5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2.5"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M12 5v14" />
-                    <path d="M5 12h14" />
-                  </svg>
+                  <Icon name="add" size={22} weight={700} />
                 </button>
               </form>
             ) : null}

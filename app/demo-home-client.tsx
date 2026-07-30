@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Icon } from "@/app/material-icon";
 import {
   getAllCachedWorkoutSnapshots,
   saveWorkoutSnapshot,
@@ -106,19 +107,7 @@ export function DemoHomeClient() {
                 title="New workout"
                 onClick={() => void createWorkout()}
               >
-                <svg
-                  aria-hidden="true"
-                  className="size-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2.5"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 5v14" />
-                  <path d="M5 12h14" />
-                </svg>
+                <Icon name="add" size={22} weight={700} />
               </button>
             ) : null}
           </div>

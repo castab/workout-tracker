@@ -1,6 +1,13 @@
 const CACHE_VERSION = "workout-tracker-pwa-v3";
 const OFFLINE_URL = "/offline";
-const PRECACHE_URLS = [OFFLINE_URL, "/icon.svg", "/maskable-icon.svg"];
+const PRECACHE_URLS = [
+  OFFLINE_URL,
+  "/icon.svg",
+  "/maskable-icon.svg",
+  // Precached rather than left to the runtime font handler: the UI is icon-only in
+  // places (back, add, delete), and font-display:block renders nothing until it loads.
+  "/fonts/material-symbols-rounded-subset.woff2",
+];
 const PUBLIC_CACHE = `${CACHE_VERSION}-public`;
 const AUTH_NAVIGATION_CACHE = `${CACHE_VERSION}-auth-pages`;
 
