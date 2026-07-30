@@ -1,36 +1,108 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
-@layer components {
-  .metric-input {
-    @apply h-12 min-w-0 rounded-xl border border-zinc-800 bg-zinc-900 px-3 text-base text-zinc-50 outline-none transition placeholder:text-zinc-600 focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20;
-  }
+/*
+ * The app is dark-only (see viewport.colorScheme in app/layout.tsx, which
+ * also applies the "dark" class to <html>). :root and .dark carry the same
+ * zinc/lime palette so there is a single source of truth and no light theme
+ * to maintain.
+ */
+:root,
+.dark {
+  --background: oklch(14.1% 0.005 285.823); /* zinc-950 */
+  --foreground: oklch(98.5% 0 0); /* zinc-50 */
+  --card: oklch(21% 0.006 285.885); /* zinc-900 */
+  --card-foreground: oklch(98.5% 0 0); /* zinc-50 */
+  --popover: oklch(21% 0.006 285.885); /* zinc-900 */
+  --popover-foreground: oklch(98.5% 0 0); /* zinc-50 */
+  --primary: oklch(89.7% 0.196 126.665); /* lime-300 */
+  --primary-foreground: oklch(14.1% 0.005 285.823); /* zinc-950 */
+  --secondary: oklch(27.4% 0.006 286.033); /* zinc-800 */
+  --secondary-foreground: oklch(96.7% 0.001 286.375); /* zinc-100 */
+  --muted: oklch(21% 0.006 285.885); /* zinc-900 */
+  --muted-foreground: oklch(70.5% 0.015 286.067); /* zinc-400 */
+  --accent: oklch(27.4% 0.006 286.033); /* zinc-800 */
+  --accent-foreground: oklch(98.5% 0 0); /* zinc-50 */
+  --destructive: oklch(70.4% 0.191 22.216); /* red-400 */
+  --destructive-foreground: oklch(98.5% 0 0); /* zinc-50 */
+  --border: oklch(27.4% 0.006 286.033); /* zinc-800 */
+  --input: oklch(37% 0.013 285.805); /* zinc-700 */
+  --ring: oklch(89.7% 0.196 126.665); /* lime-300 */
+  --chart-1: oklch(89.7% 0.196 126.665);
+  --chart-2: oklch(70.5% 0.015 286.067);
+  --chart-3: oklch(55.2% 0.016 285.938);
+  --chart-4: oklch(44.2% 0.017 285.786);
+  --chart-5: oklch(27.4% 0.006 286.033);
+  --radius: 1rem;
+  --sidebar: oklch(21% 0.006 285.885);
+  --sidebar-foreground: oklch(98.5% 0 0);
+  --sidebar-primary: oklch(89.7% 0.196 126.665);
+  --sidebar-primary-foreground: oklch(14.1% 0.005 285.823);
+  --sidebar-accent: oklch(27.4% 0.006 286.033);
+  --sidebar-accent-foreground: oklch(98.5% 0 0);
+  --sidebar-border: oklch(27.4% 0.006 286.033);
+  --sidebar-ring: oklch(89.7% 0.196 126.665);
+}
 
-  .metric-select {
-    @apply h-12 rounded-xl border border-zinc-800 bg-zinc-900 px-2 text-sm font-bold text-zinc-200 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
   }
 }

@@ -1,9 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { Pencil, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ExerciseSuggestion } from "@/app/workouts/[workoutId]/add-exercise-form";
-import { PencilIcon, TrashIcon } from "./workout-icons";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   addPendingOperation,
   clearPendingOperations,
@@ -23,6 +32,9 @@ type OfflineWorkoutClientProps = {
 
 type SyncState = "online" | "offline" | "syncing" | "pending";
 type StartingWeight = ExerciseSuggestion["startingWeights"][number];
+
+const inputFieldClass =
+  "h-14 rounded-2xl bg-zinc-950 px-4 text-base focus-visible:border-lime-300 focus-visible:ring-lime-300/20";
 
 function createId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
@@ -241,9 +253,9 @@ function StatusBanner({ state, pendingCount }: { state: SyncState; pendingCount:
       : `${pendingCount} change${pendingCount === 1 ? "" : "s"} waiting to sync.`;
 
   return (
-    <div className="rounded-2xl border border-lime-300/30 bg-lime-300/10 p-4 text-sm font-semibold text-lime-100">
-      {text}
-    </div>
+    <Alert variant="success">
+      <AlertDescription>{text}</AlertDescription>
+    </Alert>
   );
 }
 
@@ -299,25 +311,58 @@ function AddOfflineExerciseForm({
     >
       <div className="space-y-2">
         <div className="flex gap-2">
-          <input
-            ref={inputRef}
-            className="h-14 min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
-            name="name"
-            placeholder="Bench Press"
-            autoComplete="off"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            required
-          />
-          <button
-            className="h-14 rounded-2xl bg-lime-300 px-5 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
-            aria-label="Add exercise"
-          >
+          <Popover open={matches.length > 0}>
+            <PopoverAnchor asChild>
+              <Input
+                ref={inputRef}
+                className={`${inputFieldClass} flex-1`}
+                name="name"
+                placeholder="Bench Press"
+                autoComplete="off"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                required
+              />
+            </PopoverAnchor>
+            <PopoverContent
+              className="w-(--radix-popover-trigger-width) p-2"
+              align="start"
+              onOpenAutoFocus={(event) => event.preventDefault()}
+              onCloseAutoFocus={(event) => event.preventDefault()}
+            >
+              <Command shouldFilter={false}>
+                <CommandList>
+                  <CommandGroup heading="Suggestions">
+                    {matches.map((suggestion) => {
+                      const suggestionStartingWeight = findStartingWeight(suggestions, suggestion.name, variant);
+
+                      return (
+                        <CommandItem
+                          key={suggestion.id}
+                          value={suggestion.id}
+                          onSelect={() => addExercise(suggestion.name)}
+                          className="flex items-center justify-between gap-3"
+                        >
+                          <span className="font-bold text-zinc-100">{suggestion.name}</span>
+                          <span className="shrink-0 text-xs font-semibold text-zinc-500">
+                            {suggestionStartingWeight
+                              ? `Last start ${formatWeight(suggestionStartingWeight.value, suggestionStartingWeight.unit)} - ${formatLastUsed(suggestionStartingWeight.lastUsedAt)}`
+                              : `Used ${suggestion.usageCount}x - ${formatLastUsed(suggestion.lastUsedAt)}`}
+                          </span>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          <Button className="h-14 rounded-2xl px-5 font-black" aria-label="Add exercise">
             Add
-          </button>
+          </Button>
         </div>
-        <input
-          className="h-10 w-full rounded-xl border border-zinc-800 bg-zinc-950/70 px-3 text-sm font-semibold text-zinc-200 outline-none transition placeholder:text-zinc-600 focus:border-lime-300/70 focus:ring-2 focus:ring-lime-300/10"
+        <Input
+          className="h-10 rounded-xl bg-zinc-950/70 px-3 text-sm font-semibold placeholder:text-zinc-600 focus-visible:border-lime-300/70 focus-visible:ring-lime-300/10"
           name="variant"
           placeholder="Method: Dumbbells, Machine, Treadmill..."
           autoComplete="off"
@@ -334,35 +379,6 @@ function AddOfflineExerciseForm({
           <p className="shrink-0 text-xs font-semibold text-lime-100/70">
             {formatLastUsed(startingWeight.lastUsedAt)}
           </p>
-        </div>
-      ) : null}
-
-      {matches.length > 0 ? (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-2">
-          <p className="px-2 pb-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
-            Suggestions
-          </p>
-          <div className="space-y-1">
-            {matches.map((suggestion) => {
-              const startingWeight = findStartingWeight(suggestions, suggestion.name, variant);
-
-              return (
-                <button
-                  key={suggestion.id}
-                  type="button"
-                  className="flex min-h-14 w-full items-center justify-between gap-3 rounded-xl px-3 text-left transition hover:bg-zinc-900 focus:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-lime-300/20"
-                  onClick={() => addExercise(suggestion.name)}
-                >
-                  <span className="font-bold text-zinc-100">{suggestion.name}</span>
-                  <span className="shrink-0 text-xs font-semibold text-zinc-500">
-                    {startingWeight
-                      ? `Last start ${formatWeight(startingWeight.value, startingWeight.unit)} - ${formatLastUsed(startingWeight.lastUsedAt)}`
-                      : `Used ${suggestion.usageCount}x - ${formatLastUsed(suggestion.lastUsedAt)}`}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
         </div>
       ) : null}
 
@@ -389,6 +405,8 @@ function MetricFields({
   const time = metric(metrics, "TIME");
   const distance = metric(metrics, "DISTANCE");
   const laps = metric(metrics, "LAPS");
+  const selectTriggerClass = "h-12 w-full rounded-xl bg-zinc-900 px-2 text-sm font-bold text-zinc-200 focus-visible:border-lime-300 focus-visible:ring-lime-300/20";
+  const metricInputClass = "h-12 rounded-xl bg-zinc-900 px-3 text-base placeholder:text-zinc-600 focus-visible:border-lime-300 focus-visible:ring-lime-300/20";
 
   return (
     <div className="grid grid-cols-2 gap-2">
@@ -398,58 +416,79 @@ function MetricFields({
             Last start: {formatWeight(startingWeight.value, startingWeight.unit)}
           </p>
           <div className="flex shrink-0 items-center gap-2">
-            <button
+            <Button
               type="button"
-              className="rounded-full bg-lime-300 px-3 py-1.5 text-xs font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
+              size="sm"
+              className="rounded-full text-xs font-black"
               onClick={(event) => {
                 applyStartingWeight(event.currentTarget.form, startingWeight);
                 onDismissStartingWeight?.();
               }}
             >
               Use
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="inline-flex size-7 items-center justify-center rounded-full border border-lime-300/30 text-sm font-black text-lime-100 transition hover:border-lime-200 hover:bg-lime-300/10 focus:outline-none focus:ring-2 focus:ring-lime-300/20"
+              variant="outline"
+              size="icon"
+              className="size-7 rounded-full border-lime-300/30 text-lime-100 hover:border-lime-200 hover:bg-lime-300/10 hover:text-lime-100"
               aria-label="Dismiss starting weight suggestion"
               title="Dismiss"
               onClick={onDismissStartingWeight}
             >
-              x
-            </button>
+              <X />
+            </Button>
           </div>
         </div>
       ) : null}
-      <input className="metric-input" name="reps" inputMode="decimal" placeholder="Reps" defaultValue={reps?.value ?? ""} autoFocus={autoFocus} />
+      <Input className={metricInputClass} name="reps" inputMode="decimal" placeholder="Reps" defaultValue={reps?.value ?? ""} autoFocus={autoFocus} />
       <div className="flex gap-1">
-        <input className="metric-input" name="weight" inputMode="decimal" placeholder="Weight" defaultValue={weight?.value ?? ""} />
-        <select className="metric-select" name="weightUnit" defaultValue={weight?.unit ?? "LB"}>
-          <option value="LB">lb</option>
-          <option value="KG">kg</option>
-        </select>
+        <Input className={`${metricInputClass} min-w-0 flex-1`} name="weight" inputMode="decimal" placeholder="Weight" defaultValue={weight?.value ?? ""} />
+        <Select name="weightUnit" defaultValue={weight?.unit ?? "LB"}>
+          <SelectTrigger className={selectTriggerClass}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="LB">lb</SelectItem>
+              <SelectItem value="KG">kg</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </div>
       <div className="flex gap-1">
-        <input className="metric-input" name="time" inputMode="decimal" placeholder="Time" defaultValue={time?.value ?? ""} />
-        <select className="metric-select" name="timeUnit" defaultValue={time?.unit ?? "MINUTES"}>
-          <option value="SECONDS">sec</option>
-          <option value="MINUTES">min</option>
-        </select>
+        <Input className={`${metricInputClass} min-w-0 flex-1`} name="time" inputMode="decimal" placeholder="Time" defaultValue={time?.value ?? ""} />
+        <Select name="timeUnit" defaultValue={time?.unit ?? "MINUTES"}>
+          <SelectTrigger className={selectTriggerClass}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="SECONDS">sec</SelectItem>
+              <SelectItem value="MINUTES">min</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </div>
       <div className="flex gap-1">
-        <input className="metric-input" name="distance" inputMode="decimal" placeholder="Distance" defaultValue={distance?.value ?? ""} />
-        <select className="metric-select" name="distanceUnit" defaultValue={distance?.unit ?? "MILES"}>
-          <option value="MILES">mi</option>
-          <option value="KM">km</option>
-          <option value="METERS">m</option>
-        </select>
+        <Input className={`${metricInputClass} min-w-0 flex-1`} name="distance" inputMode="decimal" placeholder="Distance" defaultValue={distance?.value ?? ""} />
+        <Select name="distanceUnit" defaultValue={distance?.unit ?? "MILES"}>
+          <SelectTrigger className={selectTriggerClass}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="MILES">mi</SelectItem>
+              <SelectItem value="KM">km</SelectItem>
+              <SelectItem value="METERS">m</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </div>
-      <input className="metric-input" name="laps" inputMode="decimal" placeholder="Laps" defaultValue={laps?.value ?? ""} />
-      <button
-        className="h-12 rounded-xl bg-lime-300 px-4 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
-        aria-label="Save set"
-      >
+      <Input className={metricInputClass} name="laps" inputMode="decimal" placeholder="Laps" defaultValue={laps?.value ?? ""} />
+      <Button className="h-12 rounded-xl px-4 font-black" aria-label="Save set">
         Save
-      </button>
+      </Button>
     </div>
   );
 }
@@ -599,68 +638,74 @@ export function OfflineWorkoutClient({
     <main className="min-h-screen bg-zinc-950 px-4 py-5 text-zinc-50">
       <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
         {syncMode === "local" ? (
-          <div className="rounded-2xl border border-lime-300/30 bg-lime-300/10 p-4 text-sm font-semibold text-lime-100">
-            Preview mode: changes are temporary and are never permanently persisted.
-          </div>
+          <Alert variant="success">
+            <AlertDescription>Preview mode: changes are temporary and are never permanently persisted.</AlertDescription>
+          </Alert>
         ) : null}
 
-        <header className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/20">
-          <Link href="/" className="text-sm font-bold text-lime-300">← Back to workouts</Link>
+        <Card className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/20 ring-0">
+          <CardContent className="p-0">
+            <Link href="/" className="text-sm font-bold text-lime-300">← Back to workouts</Link>
 
-          <div className="mt-5 flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-zinc-400">{formatDate(snapshot.startedAt)}</p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight">
-                {snapshot.endedAt ? "Workout complete" : "Active workout"}
-              </h1>
+            <div className="mt-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-zinc-400">{formatDate(snapshot.startedAt)}</p>
+                <h1 className="mt-2 text-3xl font-black tracking-tight">
+                  {snapshot.endedAt ? "Workout complete" : "Active workout"}
+                </h1>
+              </div>
+
+              {!snapshot.endedAt ? (
+                <Button
+                  className="h-auto rounded-full px-4 py-2 text-sm font-black"
+                  aria-label="Finish workout"
+                  disabled={!canFinishWorkout}
+                  onClick={() => void queue(operation("finishWorkout", {}))}
+                >
+                  Finish
+                </Button>
+              ) : null}
             </div>
 
-            {!snapshot.endedAt ? (
-              <button
-                className="rounded-full bg-lime-300 px-4 py-2 text-sm font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400 disabled:hover:bg-zinc-700"
-                aria-label="Finish workout"
-                disabled={!canFinishWorkout}
-                onClick={() => void queue(operation("finishWorkout", {}))}
-              >
-                Finish
-              </button>
+            {!snapshot.endedAt && !canFinishWorkout ? (
+              <Alert variant="warning" className="mt-5">
+                <AlertDescription className="font-black">
+                  {finishError === "missingEntries" ? "Workout not finished." : "Finish locked for now."}
+                </AlertDescription>
+                <AlertDescription>
+                  Add at least one exercise and at least one entry for every exercise before finishing.
+                </AlertDescription>
+              </Alert>
             ) : null}
-          </div>
-
-          {!snapshot.endedAt && !canFinishWorkout ? (
-            <div className="mt-5 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4">
-              <p className="text-sm font-black text-amber-100">
-                {finishError === "missingEntries" ? "Workout not finished." : "Finish locked for now."}
-              </p>
-              <p className="mt-1 text-sm font-semibold text-amber-100/80">
-                Add at least one exercise and at least one entry for every exercise before finishing.
-              </p>
-            </div>
-          ) : null}
-        </header>
+          </CardContent>
+        </Card>
 
         <StatusBanner state={syncState} pendingCount={pendingCount} />
 
         {!snapshot.endedAt ? (
-          <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
-            <h2 className="text-xl font-black">Add exercise</h2>
-            <AddOfflineExerciseForm
-              suggestions={suggestions}
-              onAdd={(name, variant) => {
-                void queue(operation("addExercise", { tempWorkoutExerciseId: createId("exercise"), name, variant }));
-              }}
-            />
-            {syncMode === "local" ? (
-              <p className="mt-3 text-xs text-zinc-500">Exercise suggestions are disabled in browser-only preview mode.</p>
-            ) : null}
-          </section>
+          <Card className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 ring-0">
+            <CardHeader className="p-0">
+              <h2 className="text-xl font-black">Add exercise</h2>
+            </CardHeader>
+            <CardContent className="p-0">
+              <AddOfflineExerciseForm
+                suggestions={suggestions}
+                onAdd={(name, variant) => {
+                  void queue(operation("addExercise", { tempWorkoutExerciseId: createId("exercise"), name, variant }));
+                }}
+              />
+              {syncMode === "local" ? (
+                <p className="mt-3 text-xs text-zinc-500">Exercise suggestions are disabled in browser-only preview mode.</p>
+              ) : null}
+            </CardContent>
+          </Card>
         ) : null}
 
         {snapshot.exercises.length === 0 ? (
-          <section className="rounded-3xl border border-dashed border-zinc-700 p-8 text-center">
-            <p className="font-black text-zinc-200">No exercises yet.</p>
-            <p className="mt-1 text-sm text-zinc-500">Add your first movement and log an entry before finishing.</p>
-          </section>
+          <Empty className="rounded-3xl border border-zinc-700 p-8">
+            <EmptyTitle className="font-black text-zinc-200">No exercises yet.</EmptyTitle>
+            <EmptyDescription className="text-zinc-500">Add your first movement and log an entry before finishing.</EmptyDescription>
+          </Empty>
         ) : snapshot.exercises.map((entry) => {
           const needsEntry = !snapshot.endedAt && entry.sets.length === 0;
           const hasLoggedReps = entry.sets.some((set) => hasRepsMetric(set.metrics));
@@ -669,173 +714,235 @@ export function OfflineWorkoutClient({
             : findStartingWeight(suggestions, entry.exercise.name, entry.variant);
 
           return (
-            <section key={entry.id} id={`exercise-${entry.id}`} className={`rounded-3xl border bg-zinc-900 p-5 shadow-xl shadow-black/10 ${needsEntry ? "border-amber-300/50" : "border-zinc-800"}`}>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">Exercise {entry.order + 1}</p>
-                  {editingExerciseId === entry.id ? (
-                    <form
-                      className="mt-2 flex gap-2"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        const formData = new FormData(event.currentTarget);
-                        const name = String(formData.get("name") ?? "").trim();
+            <Card
+              key={entry.id}
+              id={`exercise-${entry.id}`}
+              className={`rounded-3xl border bg-zinc-900 p-5 shadow-xl shadow-black/10 ring-0 ${needsEntry ? "border-amber-300/50" : "border-zinc-800"}`}
+            >
+              <CardContent className="p-0">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">Exercise {entry.order + 1}</p>
 
-                        if (!name) return;
-
-                        setEditingExerciseId(null);
-                        void queue(operation("updateExerciseName", { workoutExerciseId: entry.id, name }));
-                      }}
-                    >
-                      <input className="h-12 min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base font-black outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20" name="name" defaultValue={entry.exercise.name} autoComplete="off" required />
-                      <button
-                        className="h-12 rounded-2xl bg-lime-300 px-4 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
-                        aria-label={`Save ${entry.exercise.name} name`}
-                      >
-                        Save
-                      </button>
-                    </form>
-                  ) : (
                     <div className="mt-2 flex items-center gap-2">
                       <h2 className="text-2xl font-black">{entry.exercise.name}</h2>
                       {!snapshot.endedAt ? (
-                        <button
+                        <Button
                           type="button"
-                          className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-zinc-700 text-zinc-400 transition hover:border-lime-300 hover:text-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/20"
+                          variant="outline"
+                          size="icon"
+                          className="size-8 rounded-full border-zinc-700 text-zinc-400 hover:border-lime-300 hover:bg-transparent hover:text-lime-200"
                           aria-label={`Edit ${entry.exercise.name} name`}
                           title={`Edit ${entry.exercise.name} name`}
                           onClick={() => setEditingExerciseId(entry.id)}
                         >
-                          <PencilIcon />
-                        </button>
+                          <Pencil />
+                        </Button>
                       ) : null}
                     </div>
-                  )}
-                  {editingVariantExerciseId === entry.id ? (
-                    <form
-                      className="mt-3 flex gap-2"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        const formData = new FormData(event.currentTarget);
-                        const variant = String(formData.get("variant") ?? "").trim();
 
-                        setEditingVariantExerciseId(null);
-                        void queue(operation("updateExerciseVariant", { workoutExerciseId: entry.id, variant }));
-                      }}
+                    <Dialog
+                      open={editingExerciseId === entry.id}
+                      onOpenChange={(open) => setEditingExerciseId(open ? entry.id : null)}
                     >
-                      <input className="h-11 min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20" name="variant" defaultValue={entry.variant} autoComplete="off" placeholder="Dumbbells, Machine, Treadmill..." />
-                      <button
-                        className="h-11 rounded-2xl bg-lime-300 px-4 font-black text-zinc-950 transition hover:bg-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/30"
-                        aria-label={`Save ${entry.exercise.name} method`}
-                      >
-                        Save
-                      </button>
-                    </form>
-                  ) : entry.variant || !snapshot.endedAt ? (
-                    <div className="mt-2 flex items-center gap-2">
-                      <p className={entry.variant ? "text-sm font-bold text-zinc-300" : "text-sm font-semibold text-zinc-500"}>
-                        {entry.variant || "Add method"}
-                      </p>
-                      {!snapshot.endedAt ? (
-                        <button
-                          type="button"
-                          className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-zinc-700 text-zinc-400 transition hover:border-lime-300 hover:text-lime-200 focus:outline-none focus:ring-2 focus:ring-lime-300/20"
-                          aria-label={`Edit ${entry.exercise.name} method`}
-                          title={`Edit ${entry.exercise.name} method`}
-                          onClick={() => setEditingVariantExerciseId(entry.id)}
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Edit exercise name</DialogTitle>
+                        </DialogHeader>
+                        <form
+                          className="flex gap-2"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            const formData = new FormData(event.currentTarget);
+                            const name = String(formData.get("name") ?? "").trim();
+
+                            if (!name) return;
+
+                            setEditingExerciseId(null);
+                            void queue(operation("updateExerciseName", { workoutExerciseId: entry.id, name }));
+                          }}
                         >
-                          <PencilIcon />
-                        </button>
-                      ) : null}
-                    </div>
+                          <Input
+                            className="h-12 min-w-0 flex-1 rounded-2xl bg-zinc-950 px-4 text-base font-black focus-visible:border-lime-300 focus-visible:ring-lime-300/20"
+                            name="name"
+                            defaultValue={entry.exercise.name}
+                            autoComplete="off"
+                            required
+                          />
+                          <Button className="h-12 rounded-2xl px-4 font-black" aria-label={`Save ${entry.exercise.name} name`}>
+                            Save
+                          </Button>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+
+                    {entry.variant || !snapshot.endedAt ? (
+                      <div className="mt-2 flex items-center gap-2">
+                        <p className={entry.variant ? "text-sm font-bold text-zinc-300" : "text-sm font-semibold text-zinc-500"}>
+                          {entry.variant || "Add method"}
+                        </p>
+                        {!snapshot.endedAt ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="size-7 rounded-full border-zinc-700 text-zinc-400 hover:border-lime-300 hover:bg-transparent hover:text-lime-200"
+                            aria-label={`Edit ${entry.exercise.name} method`}
+                            title={`Edit ${entry.exercise.name} method`}
+                            onClick={() => setEditingVariantExerciseId(entry.id)}
+                          >
+                            <Pencil />
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    <Dialog
+                      open={editingVariantExerciseId === entry.id}
+                      onOpenChange={(open) => setEditingVariantExerciseId(open ? entry.id : null)}
+                    >
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Edit {entry.exercise.name} method</DialogTitle>
+                        </DialogHeader>
+                        <form
+                          className="flex gap-2"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            const formData = new FormData(event.currentTarget);
+                            const variant = String(formData.get("variant") ?? "").trim();
+
+                            setEditingVariantExerciseId(null);
+                            void queue(operation("updateExerciseVariant", { workoutExerciseId: entry.id, variant }));
+                          }}
+                        >
+                          <Input
+                            className="h-11 min-w-0 flex-1 rounded-2xl bg-zinc-950 px-4 text-base focus-visible:border-lime-300 focus-visible:ring-lime-300/20"
+                            name="variant"
+                            defaultValue={entry.variant}
+                            autoComplete="off"
+                            placeholder="Dumbbells, Machine, Treadmill..."
+                          />
+                          <Button className="h-11 rounded-2xl px-4 font-black" aria-label={`Save ${entry.exercise.name} method`}>
+                            Save
+                          </Button>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+
+                  {!snapshot.endedAt ? (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="size-9 rounded-full border-red-400/40 text-red-200 hover:border-red-300 hover:bg-transparent hover:text-red-200"
+                      aria-label={`Delete ${entry.exercise.name}`}
+                      title={`Delete ${entry.exercise.name}`}
+                      onClick={() => void queue(operation("removeExercise", { workoutExerciseId: entry.id }))}
+                    >
+                      <Trash2 />
+                    </Button>
                   ) : null}
                 </div>
 
-                {!snapshot.endedAt ? (
-                  <button
-                    className="inline-flex size-9 items-center justify-center rounded-full border border-red-400/40 text-red-200 transition hover:border-red-300"
-                    aria-label={`Delete ${entry.exercise.name}`}
-                    title={`Delete ${entry.exercise.name}`}
-                    onClick={() => void queue(operation("removeExercise", { workoutExerciseId: entry.id }))}
-                  >
-                    <TrashIcon />
-                  </button>
+                {needsEntry ? (
+                  <Alert variant="warning" className="mt-4">
+                    <AlertDescription>Add at least one entry for this exercise before finishing.</AlertDescription>
+                  </Alert>
                 ) : null}
-              </div>
 
-              {needsEntry ? <p className="mt-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm font-semibold text-amber-100">Add at least one entry for this exercise before finishing.</p> : null}
+                {entry.sets.length > 0 ? (
+                  <div className="mt-5 space-y-2">
+                    {entry.sets.map((set) => {
+                      const summary = set.metrics.map(formatMetric).join(" · ");
 
-              {entry.sets.length > 0 ? (
-                <div className="mt-5 space-y-2">
-                  {entry.sets.map((set) => {
-                    const summary = set.metrics.map(formatMetric).join(" · ");
-                    const isEditing = editingSetId === set.id;
-
-                    return isEditing ? (
-                      <form
-                        key={set.id}
-                        className="rounded-2xl border border-lime-300/30 bg-zinc-950 p-3"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          const metrics = metricsFromForm(new FormData(event.currentTarget));
-
-                          if (metrics.length === 0) return;
-
-                          setEditingSetId(null);
-                          void queue(operation("updateSet", { setId: set.id, metrics }));
-                        }}
-                      >
-                        <div className="mb-3 flex items-center justify-between gap-3">
-                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-lime-200">Edit Set {set.order + 1}</p>
-                          <button type="button" className="rounded-full border border-zinc-700 px-3 py-2 text-sm font-bold text-zinc-300" onClick={() => setEditingSetId(null)}>Cancel</button>
-                        </div>
-                        <MetricFields metrics={set.metrics} />
-                      </form>
-                    ) : (
-                      <div key={set.id} className="flex items-center justify-between gap-3 rounded-2xl bg-zinc-950 p-3">
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">Set {set.order + 1}</p>
-                          <p className="mt-1 text-sm font-semibold text-zinc-200">{summary}</p>
-                        </div>
-                        {!snapshot.endedAt ? (
-                          <div className="flex shrink-0 gap-2">
-                            <button type="button" className="inline-flex size-9 items-center justify-center rounded-full bg-zinc-800 text-zinc-300 transition hover:bg-zinc-700" aria-label={`Edit Set ${set.order + 1}`} title={`Edit Set ${set.order + 1}`} onClick={() => setEditingSetId(set.id)}>
-                              <PencilIcon />
-                            </button>
-                            <button className="inline-flex size-9 items-center justify-center rounded-full bg-zinc-800 text-zinc-300 transition hover:bg-zinc-700" aria-label={`Remove Set ${set.order + 1}`} title={`Remove Set ${set.order + 1}`} onClick={() => void queue(operation("deleteSet", { setId: set.id }))}>
-                              <TrashIcon />
-                            </button>
+                      return (
+                        <div key={set.id}>
+                          <div className="flex items-center justify-between gap-3 rounded-2xl bg-zinc-950 p-3">
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">Set {set.order + 1}</p>
+                              <p className="mt-1 text-sm font-semibold text-zinc-200">{summary}</p>
+                            </div>
+                            {!snapshot.endedAt ? (
+                              <div className="flex shrink-0 gap-2">
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="icon"
+                                  className="size-9 rounded-full bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                                  aria-label={`Edit Set ${set.order + 1}`}
+                                  title={`Edit Set ${set.order + 1}`}
+                                  onClick={() => setEditingSetId(set.id)}
+                                >
+                                  <Pencil />
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  size="icon"
+                                  className="size-9 rounded-full bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                                  aria-label={`Remove Set ${set.order + 1}`}
+                                  title={`Remove Set ${set.order + 1}`}
+                                  onClick={() => void queue(operation("deleteSet", { setId: set.id }))}
+                                >
+                                  <Trash2 />
+                                </Button>
+                              </div>
+                            ) : null}
                           </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : null}
 
-              {!snapshot.endedAt ? (
-                <form
-                  className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-950 p-3"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    const form = event.currentTarget;
-                    const metrics = metricsFromForm(new FormData(form));
+                          <Dialog
+                            open={editingSetId === set.id}
+                            onOpenChange={(open) => setEditingSetId(open ? set.id : null)}
+                          >
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Edit Set {set.order + 1}</DialogTitle>
+                              </DialogHeader>
+                              <form
+                                onSubmit={(event) => {
+                                  event.preventDefault();
+                                  const metrics = metricsFromForm(new FormData(event.currentTarget));
 
-                    if (metrics.length === 0) return;
+                                  if (metrics.length === 0) return;
 
-                    form.reset();
-                    void queue(operation("addSet", { tempSetId: createId("set"), workoutExerciseId: entry.id, metrics }));
-                  }}
-                >
-                  <p className="mb-3 text-sm font-black text-zinc-300">Quick add set</p>
-                  <MetricFields
-                    autoFocus={entry.id === focusedExerciseId}
-                    startingWeight={startingWeight}
-                    onDismissStartingWeight={() => dismissStartingWeight(entry.id)}
-                  />
-                </form>
-              ) : null}
-            </section>
+                                  setEditingSetId(null);
+                                  void queue(operation("updateSet", { setId: set.id, metrics }));
+                                }}
+                              >
+                                <MetricFields metrics={set.metrics} />
+                              </form>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+
+                {!snapshot.endedAt ? (
+                  <form
+                    className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-950 p-3"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const form = event.currentTarget;
+                      const metrics = metricsFromForm(new FormData(form));
+
+                      if (metrics.length === 0) return;
+
+                      form.reset();
+                      void queue(operation("addSet", { tempSetId: createId("set"), workoutExerciseId: entry.id, metrics }));
+                    }}
+                  >
+                    <p className="mb-3 text-sm font-black text-zinc-300">Quick add set</p>
+                    <MetricFields
+                      autoFocus={entry.id === focusedExerciseId}
+                      startingWeight={startingWeight}
+                      onDismissStartingWeight={() => dismissStartingWeight(entry.id)}
+                    />
+                  </form>
+                ) : null}
+              </CardContent>
+            </Card>
           );
         })}
       </div>

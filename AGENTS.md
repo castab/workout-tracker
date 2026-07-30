@@ -18,7 +18,7 @@ The app is inspired by the older `fitness-ui` and `fitness-backend` repositories
 - React 19
 - TypeScript
 - Tailwind CSS 4
-- HyperUI-inspired copied Tailwind components
+- shadcn/ui components (Radix primitives, lucide-react icons), installed as source code under `components/ui`
 - Prisma 7
 - PostgreSQL 18
 - Docker Compose
@@ -107,7 +107,7 @@ Prioritize:
 - low-friction add/delete/edit flows
 - readable workout state while standing in a gym
 
-Use HyperUI as copy/paste design inspiration. Do not add HyperUI as a package dependency unless the project direction changes.
+shadcn/ui is the UI system of record. Add components via `npx shadcn@latest add <component>` (source lands in `components/ui`, not a runtime dependency) rather than hand-rolling markup. Use the Radix base and lucide-react icons, matching `components.json`. The app is single-theme dark (see `--background`/`--primary`/etc. in `app/globals.css`, zinc surfaces + lime accent) — there is no light/dark toggle, so don't introduce one.
 
 Completed workouts are read-only in the UI. Active workouts support adding/removing exercises, editing exercise names, and adding/updating/deleting set entries.
 
