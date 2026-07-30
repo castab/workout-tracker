@@ -2,11 +2,23 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isDemoMode } from "@/app/demo-mode";
 import { LocalDateTime } from "@/app/local-date-time";
-import type { ExerciseSuggestion } from "@/app/workouts/[workoutId]/add-exercise-form";
 import { DemoWorkoutClient } from "@/app/workouts/[workoutId]/demo-workout-client";
 import { OfflineWorkoutClient } from "@/app/workouts/[workoutId]/offline-workout-client";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import {
+  deriveMode,
+  formatMetricValue,
+  formatSetCompact,
+  formatSetSummary,
+} from "@/lib/workout-metrics";
+import {
+  type ExerciseSuggestion,
+  type LastSession,
+  type StartingWeight,
+  isWeightUnit,
+} from "@/lib/workout-suggestions";
+import type { OfflineMetric } from "@/lib/workout-sync-types";
 import { serializeWorkoutSnapshot } from "@/lib/workout-snapshot";
 
 export const dynamic = "force-dynamic";
@@ -30,36 +42,12 @@ function WorkoutDate({ date }: { date: Date }) {
   return <LocalDateTime isoString={date.toISOString()} fallback={formatDate(date)} weekday="short" />;
 }
 
-function formatMetricValue(value: { toString(): string }) {
-  return value.toString().replace(/\.00$/, "");
-}
-
-function formatMetric(metric: { type: string; value: { toString(): string }; unit: string }) {
-  const value = formatMetricValue(metric.value);
-
-  if (metric.type === "REPS") return `${value} reps`;
-  if (metric.type === "WEIGHT") return `${value} ${metric.unit.toLowerCase()}`;
-  if (metric.type === "TIME") return `${value} ${metric.unit.toLowerCase()}`;
-  if (metric.type === "DISTANCE") return `${value} ${metric.unit.toLowerCase()}`;
-  if (metric.type === "LAPS") return `${value} laps`;
-
-  return `${value} ${metric.unit.toLowerCase()}`;
-}
-
 type ExerciseSuggestionRow = {
   id: string;
   name: string;
   usageCount: number;
   lastUsedAt: Date;
 };
-
-type StartingWeight = ExerciseSuggestion["startingWeights"][number];
-
-const weightUnits: StartingWeight["unit"][] = ["LB", "KG"];
-
-function isWeightUnit(unit: string): unit is StartingWeight["unit"] {
-  return weightUnits.includes(unit as StartingWeight["unit"]);
-}
 
 async function getExerciseSuggestions(userId: string, workoutId: string): Promise<ExerciseSuggestion[]> {
   const suggestions = await prisma.$queryRaw<ExerciseSuggestionRow[]>`
@@ -85,54 +73,54 @@ async function getExerciseSuggestions(userId: string, workoutId: string): Promis
     return [];
   }
 
-  const startingWeightRows = await prisma.workoutExercise.findMany({
+  // One pass feeds both outputs: the starting-weight hints (deduped per
+  // exercise+variant) and the "Last time" line (deduped per exercise).
+  const historyRows = await prisma.workoutExercise.findMany({
     where: {
       exerciseId: { in: exerciseIds },
       workout: {
         userId,
         id: { not: workoutId },
       },
-      sets: {
-        some: {
-          metrics: {
-            some: {
-              type: "WEIGHT",
-              unit: { in: weightUnits },
-            },
-          },
-        },
-      },
+      sets: { some: {} },
     },
     orderBy: { createdAt: "desc" },
     take: 300,
     include: {
       sets: {
         orderBy: { order: "asc" },
-        include: {
-          metrics: {
-            where: {
-              type: "WEIGHT",
-              unit: { in: weightUnits },
-            },
-          },
-        },
+        include: { metrics: true },
       },
     },
   });
 
   const startingWeightsByExerciseId = new Map<string, StartingWeight[]>();
+  const lastSessionByExerciseId = new Map<string, LastSession>();
   const seenExerciseVariants = new Set<string>();
 
-  for (const entry of startingWeightRows) {
-    const firstWeightMetric = entry.sets
-      .flatMap((set) => set.metrics)
-      .find((metric) => isWeightUnit(metric.unit));
+  for (const entry of historyRows) {
+    const metricsBySet: OfflineMetric[][] = entry.sets.map((set) =>
+      set.metrics.map((item) => ({
+        type: item.type,
+        unit: item.unit,
+        value: formatMetricValue(item.value),
+      })),
+    );
 
-    if (!firstWeightMetric) continue;
+    // Rows are ordered newest-first, so the first hit per exercise is the most recent.
+    if (!lastSessionByExerciseId.has(entry.exerciseId) && metricsBySet.length > 0) {
+      lastSessionByExerciseId.set(entry.exerciseId, {
+        performedAt: entry.createdAt.toISOString(),
+        mode: deriveMode(metricsBySet[metricsBySet.length - 1]),
+        setSummaries: metricsBySet.map(formatSetCompact).filter(Boolean),
+      });
+    }
 
-    const weightUnit = firstWeightMetric.unit;
+    const firstWeightMetric = metricsBySet
+      .flat()
+      .find((item) => item.type === "WEIGHT" && isWeightUnit(item.unit));
 
-    if (!isWeightUnit(weightUnit)) continue;
+    if (!firstWeightMetric || !isWeightUnit(firstWeightMetric.unit)) continue;
 
     const variant = entry.variant.trim();
     const key = `${entry.exerciseId}:${variant.toLowerCase()}`;
@@ -144,8 +132,8 @@ async function getExerciseSuggestions(userId: string, workoutId: string): Promis
     const startingWeights = startingWeightsByExerciseId.get(entry.exerciseId) ?? [];
 
     startingWeights.push({
-      value: formatMetricValue(firstWeightMetric.value),
-      unit: weightUnit,
+      value: firstWeightMetric.value,
+      unit: firstWeightMetric.unit,
       variant,
       lastUsedAt: entry.createdAt.toISOString(),
     });
@@ -157,6 +145,7 @@ async function getExerciseSuggestions(userId: string, workoutId: string): Promis
     ...suggestion,
     lastUsedAt: suggestion.lastUsedAt.toISOString(),
     startingWeights: startingWeightsByExerciseId.get(suggestion.id) ?? [],
+    lastSession: lastSessionByExerciseId.get(suggestion.id) ?? null,
   }));
 }
 
@@ -198,11 +187,7 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
     notFound();
   }
 
-  const isActiveWorkout = !workout.endedAt;
-  const canFinishWorkout = workout.exercises.length > 0 && workout.exercises.every((exercise) => exercise.sets.length > 0);
-  const showFinishError = isActiveWorkout && finishError === "missingEntries";
-
-  if (isActiveWorkout) {
+  if (!workout.endedAt) {
     return (
       <OfflineWorkoutClient
         initialSnapshot={serializeWorkoutSnapshot(workout)}
@@ -214,103 +199,103 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 px-4 py-5 text-zinc-50">
-      <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
-        <header className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/20">
-          <Link href="/" className="text-sm font-bold text-lime-300">
+    <main
+      className="min-h-screen text-zinc-50"
+      style={{ background: "var(--surface-app)", padding: "var(--page-py) var(--page-px)" }}
+    >
+      <div className="mx-auto flex w-full flex-col" style={{ maxWidth: "var(--content-max)", gap: "var(--stack-gap)" }}>
+        <header
+          className="border p-5"
+          style={{
+            borderRadius: "var(--radius-xl)",
+            borderColor: "var(--border-default)",
+            background: "var(--surface-card)",
+            boxShadow: "var(--shadow-card)",
+          }}
+        >
+          <Link href="/" className="text-sm font-bold" style={{ color: "var(--text-accent)" }}>
             ← Back to workouts
           </Link>
 
-          <div className="mt-5 flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-zinc-400"><WorkoutDate date={workout.startedAt} /></p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight">
-                {workout.endedAt ? "Workout complete" : "Active workout"}
-              </h1>
-            </div>
-
-            {isActiveWorkout ? null : null}
+          <div className="mt-5">
+            <p className="text-sm font-semibold" style={{ color: "var(--text-muted)" }}>
+              <WorkoutDate date={workout.startedAt} />
+            </p>
+            <h1 className="mt-2" style={{ font: "var(--type-display)", letterSpacing: "var(--tracking-tight)" }}>
+              Workout complete
+            </h1>
           </div>
-
-          {isActiveWorkout && !canFinishWorkout ? (
-            <div className="mt-5 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4">
-              <p className="text-sm font-black text-amber-100">
-                {showFinishError ? "Workout not finished." : "Finish locked for now."}
-              </p>
-              <p className="mt-1 text-sm font-semibold text-amber-100/80">
-                Add at least one exercise and at least one entry for every exercise before finishing.
-              </p>
-            </div>
-          ) : null}
         </header>
 
-        <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
-          <h2 className="text-xl font-black">Workout locked</h2>
-          <p className="mt-2 text-sm font-semibold text-zinc-400">
+        <section
+          className="border p-5"
+          style={{
+            borderRadius: "var(--radius-xl)",
+            borderColor: "var(--border-default)",
+            background: "var(--surface-card)",
+          }}
+        >
+          <h2 style={{ font: "var(--type-section)" }}>Workout locked</h2>
+          <p className="mt-2 text-sm font-semibold" style={{ color: "var(--text-muted)" }}>
             Completed workouts are read-only so the recorded history stays intact.
           </p>
         </section>
 
         {workout.exercises.length === 0 ? (
-          <section className="rounded-3xl border border-dashed border-zinc-700 p-8 text-center">
-            <p className="font-black text-zinc-200">No exercises yet.</p>
-            <p className="mt-1 text-sm text-zinc-500">
+          <section
+            className="border border-dashed p-8 text-center"
+            style={{ borderRadius: "var(--radius-xl)", borderColor: "var(--border-strong)" }}
+          >
+            <p className="font-black" style={{ color: "var(--text-secondary)" }}>No exercises yet.</p>
+            <p className="mt-1 text-sm" style={{ color: "var(--text-faint)" }}>
               This workout has no exercises.
             </p>
           </section>
         ) : (
-          workout.exercises.map((entry) => {
-            const needsEntry = false;
-
-            return (
-              <section
-                key={entry.id}
-                id={`exercise-${entry.id}`}
-                className={`rounded-3xl border bg-zinc-900 p-5 shadow-xl shadow-black/10 ${
-                  needsEntry ? "border-amber-300/50" : "border-zinc-800"
-                }`}
+          workout.exercises.map((entry) => (
+            <section
+              key={entry.id}
+              id={`exercise-${entry.id}`}
+              className="border p-5"
+              style={{
+                borderRadius: "var(--radius-xl)",
+                borderColor: "var(--border-default)",
+                background: "var(--surface-card)",
+                boxShadow: "var(--shadow-card-soft)",
+              }}
+            >
+              <p
+                className="text-xs font-bold uppercase"
+                style={{ letterSpacing: "var(--tracking-eyebrow)", color: "var(--text-faint)" }}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
-                      Exercise {entry.order + 1}
-                    </p>
-                    <h2 className="mt-2 text-2xl font-black">{entry.exercise.name}</h2>
-                    {entry.variant ? (
-                      <p className="mt-2 text-sm font-bold text-zinc-300">{entry.variant}</p>
-                    ) : null}
-                  </div>
+                Exercise {entry.order + 1}
+              </p>
+              <h2 className="mt-2" style={{ font: "var(--type-exercise)", letterSpacing: "var(--tracking-tight)" }}>
+                {entry.exercise.name}
+              </h2>
+              {entry.variant ? (
+                <p className="mt-2 text-sm font-bold" style={{ color: "var(--text-secondary)" }}>{entry.variant}</p>
+              ) : null}
 
-                  {isActiveWorkout ? null : null}
+              {entry.sets.length > 0 ? (
+                <div className="mt-5 space-y-2">
+                  {entry.sets.map((set) => (
+                    <div key={set.id} className="p-3" style={{ borderRadius: "var(--radius-lg)", background: "var(--surface-sunken)" }}>
+                      <p
+                        className="text-xs font-bold uppercase"
+                        style={{ letterSpacing: "var(--tracking-eyebrow-sm)", color: "var(--text-faint)" }}
+                      >
+                        Set {set.order + 1}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>
+                        {formatSetSummary(set.metrics)}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-
-                {needsEntry ? (
-                  <p className="mt-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm font-semibold text-amber-100">
-                    Add at least one entry for this exercise before finishing.
-                  </p>
-                ) : null}
-
-                {entry.sets.length > 0 ? (
-                  <div className="mt-5 space-y-2">
-                    {entry.sets.map((set) => {
-                      const summary = set.metrics.map(formatMetric).join(" · ");
-
-                      return (
-                        <div key={set.id} className="rounded-2xl bg-zinc-950 p-3">
-                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
-                            Set {set.order + 1}
-                          </p>
-                          <p className="mt-1 text-sm font-semibold text-zinc-200">{summary}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : null}
-
-                {isActiveWorkout ? null : null}
-              </section>
-            );
-          })
+              ) : null}
+            </section>
+          ))
         )}
       </div>
     </main>
