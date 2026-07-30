@@ -1,12 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isDemoMode } from "@/app/demo-mode";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { minimumPasswordLength } from "@/lib/users";
@@ -61,220 +55,180 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   return (
     <main className="min-h-screen bg-zinc-950 px-4 py-5 text-zinc-50">
       <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
-        <Card className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/20 ring-0">
-          <CardContent className="p-0">
-            <Link
-              href="/"
-              className="text-sm font-bold text-lime-300 transition hover:text-lime-200"
-            >
-              Back to workouts
-            </Link>
-            <h1 className="mt-4 text-3xl font-black tracking-tight">Settings</h1>
-            <p className="mt-2 text-sm leading-6 text-zinc-400">
-              Manage your account and password.
-            </p>
-          </CardContent>
-        </Card>
+        <header className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/20">
+          <Link
+            href="/"
+            className="text-sm font-bold text-lime-300 transition hover:text-lime-200"
+          >
+            Back to workouts
+          </Link>
+          <h1 className="mt-4 text-3xl font-black tracking-tight">Settings</h1>
+          <p className="mt-2 text-sm leading-6 text-zinc-400">
+            Manage your account and password.
+          </p>
+        </header>
 
         {statusMessage ? (
-          <Alert variant="success">
-            <AlertDescription>{statusMessage}</AlertDescription>
-          </Alert>
+          <div className="rounded-2xl border border-lime-300/30 bg-lime-300/10 px-4 py-3 text-sm text-lime-100">
+            {statusMessage}
+          </div>
         ) : null}
 
         {message ? (
-          <Alert variant="destructive">
-            <AlertDescription>{message}</AlertDescription>
-          </Alert>
+          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+            {message}
+          </div>
         ) : null}
 
-        <Card className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 ring-0">
-          <CardHeader className="p-0">
-            <h2 className="text-xl font-black">Account</h2>
-            <p className="mt-2 text-sm font-semibold text-zinc-400">
-              Signed in as {user.username}. Role: {user.role.toLowerCase()}.
-            </p>
-          </CardHeader>
+        <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
+          <h2 className="text-xl font-black">Account</h2>
+          <p className="mt-2 text-sm font-semibold text-zinc-400">
+            Signed in as {user.username}. Role: {user.role.toLowerCase()}.
+          </p>
 
-          <CardContent className="p-0">
-            <form action={updateOwnUsernameAction} className="mt-5">
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="account-username" className="text-sm font-semibold text-zinc-200">
-                    Username
-                  </FieldLabel>
-                  <Input
-                    id="account-username"
-                    className="h-14 rounded-2xl bg-zinc-950 px-4 text-base focus-visible:border-lime-300 focus-visible:ring-lime-300/20"
-                    name="username"
-                    type="text"
-                    autoCapitalize="none"
-                    autoComplete="username"
-                    defaultValue={user.username}
-                    required
-                  />
-                </Field>
+          <form action={updateOwnUsernameAction} className="mt-5 space-y-4">
+            <label className="block">
+              <span className="text-sm font-semibold text-zinc-200">Username</span>
+              <input
+                className="mt-2 h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base text-zinc-50 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
+                name="username"
+                type="text"
+                autoCapitalize="none"
+                autoComplete="username"
+                defaultValue={user.username}
+                required
+              />
+            </label>
 
-                <Button variant="secondary" className="h-14 w-full rounded-2xl text-base font-black">
-                  Save username
-                </Button>
-              </FieldGroup>
-            </form>
-          </CardContent>
-        </Card>
+            <button className="h-14 w-full rounded-2xl bg-zinc-50 px-5 text-base font-black text-zinc-950 transition hover:bg-white">
+              Save username
+            </button>
+          </form>
+        </section>
 
-        <Card className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 ring-0">
-          <CardHeader className="p-0">
-            <h2 className="text-xl font-black">Password</h2>
-          </CardHeader>
+        <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
+          <h2 className="text-xl font-black">Password</h2>
 
-          <CardContent className="p-0">
-            <form action={changePasswordAction} className="mt-5">
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="current-password" className="text-sm font-semibold text-zinc-200">
-                    Current password
-                  </FieldLabel>
-                  <Input
-                    id="current-password"
-                    className="h-14 rounded-2xl bg-zinc-950 px-4 text-base focus-visible:border-lime-300 focus-visible:ring-lime-300/20"
-                    name="currentPassword"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                  />
-                </Field>
+          <form action={changePasswordAction} className="mt-5 space-y-4">
+            <label className="block">
+              <span className="text-sm font-semibold text-zinc-200">
+                Current password
+              </span>
+              <input
+                className="mt-2 h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base text-zinc-50 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
+                name="currentPassword"
+                type="password"
+                autoComplete="current-password"
+                required
+              />
+            </label>
 
-                <Field>
-                  <FieldLabel htmlFor="new-password" className="text-sm font-semibold text-zinc-200">
-                    New password
-                  </FieldLabel>
-                  <Input
-                    id="new-password"
-                    className="h-14 rounded-2xl bg-zinc-950 px-4 text-base focus-visible:border-lime-300 focus-visible:ring-lime-300/20"
-                    name="newPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    minLength={minimumPasswordLength}
-                    required
-                  />
-                </Field>
+            <label className="block">
+              <span className="text-sm font-semibold text-zinc-200">New password</span>
+              <input
+                className="mt-2 h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base text-zinc-50 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
+                name="newPassword"
+                type="password"
+                autoComplete="new-password"
+                minLength={minimumPasswordLength}
+                required
+              />
+            </label>
 
-                <Field>
-                  <FieldLabel htmlFor="confirm-password" className="text-sm font-semibold text-zinc-200">
-                    Confirm new password
-                  </FieldLabel>
-                  <Input
-                    id="confirm-password"
-                    className="h-14 rounded-2xl bg-zinc-950 px-4 text-base focus-visible:border-lime-300 focus-visible:ring-lime-300/20"
-                    name="confirmPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    minLength={minimumPasswordLength}
-                    required
-                  />
-                </Field>
+            <label className="block">
+              <span className="text-sm font-semibold text-zinc-200">
+                Confirm new password
+              </span>
+              <input
+                className="mt-2 h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base text-zinc-50 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
+                name="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                minLength={minimumPasswordLength}
+                required
+              />
+            </label>
 
-                <Button className="h-14 w-full rounded-2xl text-base font-black">
-                  Change password
-                </Button>
-              </FieldGroup>
-            </form>
-          </CardContent>
-        </Card>
+            <button className="h-14 w-full rounded-2xl bg-lime-300 px-5 text-base font-black text-zinc-950 transition hover:bg-lime-200">
+              Change password
+            </button>
+          </form>
+        </section>
 
         {user.role === "ADMIN" ? (
-          <Card className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 ring-0">
-            <CardHeader className="p-0">
-              <h2 className="text-xl font-black">Users</h2>
-              <p className="mt-2 text-sm font-semibold text-zinc-400">
-                Create users, rename accounts, and transfer the single admin role.
-              </p>
-            </CardHeader>
+          <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
+            <h2 className="text-xl font-black">Users</h2>
+            <p className="mt-2 text-sm font-semibold text-zinc-400">
+              Create users, rename accounts, and transfer the single admin role.
+            </p>
 
-            <CardContent className="p-0">
-              <form action={createUserAction} className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
-                <FieldGroup>
-                  <h3 className="font-black">Create user</h3>
-                  <Field>
-                    <FieldLabel htmlFor="new-user-username" className="text-sm font-semibold text-zinc-200">
-                      Username
-                    </FieldLabel>
-                    <Input
-                      id="new-user-username"
-                      className="h-14 rounded-2xl bg-zinc-900 px-4 text-base focus-visible:border-lime-300 focus-visible:ring-lime-300/20"
+            <form action={createUserAction} className="mt-5 space-y-4 rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+              <h3 className="font-black">Create user</h3>
+              <label className="block">
+                <span className="text-sm font-semibold text-zinc-200">Username</span>
+                <input
+                  className="mt-2 h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-900 px-4 text-base text-zinc-50 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
+                  name="username"
+                  type="text"
+                  autoCapitalize="none"
+                  autoComplete="off"
+                  required
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold text-zinc-200">Initial password</span>
+                <input
+                  className="mt-2 h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-900 px-4 text-base text-zinc-50 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={minimumPasswordLength}
+                  required
+                />
+              </label>
+              <button className="h-14 w-full rounded-2xl bg-lime-300 px-5 text-base font-black text-zinc-950 transition hover:bg-lime-200">
+                Create user
+              </button>
+            </form>
+
+            <div className="mt-5 space-y-3">
+              {users.map((listedUser) => (
+                <div key={listedUser.id} className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-black">{listedUser.username}</p>
+                      <p className="text-sm font-semibold text-zinc-500">{listedUser.role.toLowerCase()}</p>
+                    </div>
+                    {listedUser.role === "ADMIN" ? (
+                      <span className="rounded-full bg-lime-300 px-3 py-1 text-xs font-black text-zinc-950">Admin</span>
+                    ) : null}
+                  </div>
+
+                  <form action={updateUserUsernameAction.bind(null, listedUser.id)} className="flex gap-2">
+                    <input
+                      className="h-12 min-w-0 flex-1 rounded-2xl border border-zinc-700 bg-zinc-900 px-4 text-base text-zinc-50 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
                       name="username"
                       type="text"
                       autoCapitalize="none"
-                      autoComplete="off"
+                      defaultValue={listedUser.username}
                       required
                     />
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="new-user-password" className="text-sm font-semibold text-zinc-200">
-                      Initial password
-                    </FieldLabel>
-                    <Input
-                      id="new-user-password"
-                      className="h-14 rounded-2xl bg-zinc-900 px-4 text-base focus-visible:border-lime-300 focus-visible:ring-lime-300/20"
-                      name="password"
-                      type="password"
-                      autoComplete="new-password"
-                      minLength={minimumPasswordLength}
-                      required
-                    />
-                  </Field>
-                  <Button className="h-14 w-full rounded-2xl text-base font-black">
-                    Create user
-                  </Button>
-                </FieldGroup>
-              </form>
+                    <button className="h-12 rounded-2xl bg-zinc-50 px-4 text-sm font-black text-zinc-950">
+                      Rename
+                    </button>
+                  </form>
 
-              <div className="mt-5 space-y-3">
-                {users.map((listedUser) => (
-                <Card key={listedUser.id} className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4 ring-0">
-                  <CardContent className="p-0">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-black">{listedUser.username}</p>
-                        <p className="text-sm font-semibold text-zinc-500">{listedUser.role.toLowerCase()}</p>
-                      </div>
-                      {listedUser.role === "ADMIN" ? (
-                        <Badge className="text-xs font-black">Admin</Badge>
-                      ) : null}
-                    </div>
-
-                    <form action={updateUserUsernameAction.bind(null, listedUser.id)} className="flex gap-2">
-                      <Input
-                        className="h-12 min-w-0 flex-1 rounded-2xl bg-zinc-900 px-4 text-base focus-visible:border-lime-300 focus-visible:ring-lime-300/20"
-                        name="username"
-                        type="text"
-                        autoCapitalize="none"
-                        defaultValue={listedUser.username}
-                        aria-label={`Rename ${listedUser.username}`}
-                        required
-                      />
-                      <Button variant="secondary" className="h-12 rounded-2xl px-4 text-sm font-black">
-                        Rename
-                      </Button>
+                  {listedUser.role !== "ADMIN" ? (
+                    <form action={transferAdminAction.bind(null, listedUser.id)} className="mt-3">
+                      <button className="h-12 w-full rounded-2xl border border-amber-300/40 px-4 text-sm font-black text-amber-100">
+                        Transfer admin to {listedUser.username}
+                      </button>
                     </form>
-
-                    {listedUser.role !== "ADMIN" ? (
-                      <form action={transferAdminAction.bind(null, listedUser.id)} className="mt-3">
-                        <Button
-                          variant="outline"
-                          className="h-12 w-full rounded-2xl border-amber-300/40 px-4 text-sm font-black text-amber-100 hover:bg-amber-300/10 hover:text-amber-100"
-                        >
-                          Transfer admin to {listedUser.username}
-                        </Button>
-                      </form>
-                    ) : null}
-                  </CardContent>
-                </Card>
+                  ) : null}
+                </div>
               ))}
             </div>
-            </CardContent>
-          </Card>
+          </section>
         ) : null}
       </div>
     </main>

@@ -1,9 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { isDemoMode } from "@/app/demo-mode";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
 import { LocalDateTime } from "@/app/local-date-time";
 import type { ExerciseSuggestion } from "@/app/workouts/[workoutId]/add-exercise-form";
 import { DemoWorkoutClient } from "@/app/workouts/[workoutId]/demo-workout-client";
@@ -219,99 +216,99 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
   return (
     <main className="min-h-screen bg-zinc-950 px-4 py-5 text-zinc-50">
       <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
-        <Card className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/20 ring-0">
-          <CardContent className="p-0">
-            <Link href="/" className="text-sm font-bold text-lime-300">
-              ← Back to workouts
-            </Link>
+        <header className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/20">
+          <Link href="/" className="text-sm font-bold text-lime-300">
+            ← Back to workouts
+          </Link>
 
-            <div className="mt-5 flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold text-zinc-400"><WorkoutDate date={workout.startedAt} /></p>
-                <h1 className="mt-2 text-3xl font-black tracking-tight">
-                  {workout.endedAt ? "Workout complete" : "Active workout"}
-                </h1>
-              </div>
+          <div className="mt-5 flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-zinc-400"><WorkoutDate date={workout.startedAt} /></p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight">
+                {workout.endedAt ? "Workout complete" : "Active workout"}
+              </h1>
             </div>
 
-            {isActiveWorkout && !canFinishWorkout ? (
-              <Alert variant="warning" className="mt-5">
-                <AlertTitle>{showFinishError ? "Workout not finished." : "Finish locked for now."}</AlertTitle>
-                <AlertDescription>
-                  Add at least one exercise and at least one entry for every exercise before finishing.
-                </AlertDescription>
-              </Alert>
-            ) : null}
-          </CardContent>
-        </Card>
+            {isActiveWorkout ? null : null}
+          </div>
 
-        <Card className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 ring-0">
-          <CardHeader className="p-0">
-            <h2 className="text-xl font-black">Workout locked</h2>
-            <p className="mt-2 text-sm font-semibold text-zinc-400">
-              Completed workouts are read-only so the recorded history stays intact.
-            </p>
-          </CardHeader>
-        </Card>
+          {isActiveWorkout && !canFinishWorkout ? (
+            <div className="mt-5 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4">
+              <p className="text-sm font-black text-amber-100">
+                {showFinishError ? "Workout not finished." : "Finish locked for now."}
+              </p>
+              <p className="mt-1 text-sm font-semibold text-amber-100/80">
+                Add at least one exercise and at least one entry for every exercise before finishing.
+              </p>
+            </div>
+          ) : null}
+        </header>
+
+        <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
+          <h2 className="text-xl font-black">Workout locked</h2>
+          <p className="mt-2 text-sm font-semibold text-zinc-400">
+            Completed workouts are read-only so the recorded history stays intact.
+          </p>
+        </section>
 
         {workout.exercises.length === 0 ? (
-          <Empty className="rounded-3xl border border-zinc-700 p-8">
-            <EmptyTitle className="font-black text-zinc-200">No exercises yet.</EmptyTitle>
-            <EmptyDescription className="text-zinc-500">
+          <section className="rounded-3xl border border-dashed border-zinc-700 p-8 text-center">
+            <p className="font-black text-zinc-200">No exercises yet.</p>
+            <p className="mt-1 text-sm text-zinc-500">
               This workout has no exercises.
-            </EmptyDescription>
-          </Empty>
+            </p>
+          </section>
         ) : (
           workout.exercises.map((entry) => {
             const needsEntry = false;
 
             return (
-              <Card
+              <section
                 key={entry.id}
                 id={`exercise-${entry.id}`}
-                className={`rounded-3xl border bg-zinc-900 p-5 shadow-xl shadow-black/10 ring-0 ${
+                className={`rounded-3xl border bg-zinc-900 p-5 shadow-xl shadow-black/10 ${
                   needsEntry ? "border-amber-300/50" : "border-zinc-800"
                 }`}
               >
-                <CardContent className="p-0">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
-                        Exercise {entry.order + 1}
-                      </p>
-                      <h2 className="mt-2 text-2xl font-black">{entry.exercise.name}</h2>
-                      {entry.variant ? (
-                        <p className="mt-2 text-sm font-bold text-zinc-300">{entry.variant}</p>
-                      ) : null}
-                    </div>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
+                      Exercise {entry.order + 1}
+                    </p>
+                    <h2 className="mt-2 text-2xl font-black">{entry.exercise.name}</h2>
+                    {entry.variant ? (
+                      <p className="mt-2 text-sm font-bold text-zinc-300">{entry.variant}</p>
+                    ) : null}
                   </div>
 
-                  {needsEntry ? (
-                    <Alert variant="warning" className="mt-4">
-                      <AlertDescription>
-                        Add at least one entry for this exercise before finishing.
-                      </AlertDescription>
-                    </Alert>
-                  ) : null}
+                  {isActiveWorkout ? null : null}
+                </div>
 
-                  {entry.sets.length > 0 ? (
-                    <div className="mt-5 space-y-2">
-                      {entry.sets.map((set) => {
-                        const summary = set.metrics.map(formatMetric).join(" · ");
+                {needsEntry ? (
+                  <p className="mt-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-3 text-sm font-semibold text-amber-100">
+                    Add at least one entry for this exercise before finishing.
+                  </p>
+                ) : null}
 
-                        return (
-                          <div key={set.id} className="rounded-2xl bg-zinc-950 p-3">
-                            <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
-                              Set {set.order + 1}
-                            </p>
-                            <p className="mt-1 text-sm font-semibold text-zinc-200">{summary}</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </CardContent>
-              </Card>
+                {entry.sets.length > 0 ? (
+                  <div className="mt-5 space-y-2">
+                    {entry.sets.map((set) => {
+                      const summary = set.metrics.map(formatMetric).join(" · ");
+
+                      return (
+                        <div key={set.id} className="rounded-2xl bg-zinc-950 p-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
+                            Set {set.order + 1}
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-zinc-200">{summary}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+
+                {isActiveWorkout ? null : null}
+              </section>
             );
           })
         )}

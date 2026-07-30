@@ -1,9 +1,5 @@
 import { redirect } from "next/navigation";
 import { isDemoMode } from "@/app/demo-mode";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { ensureInitialAdminUser, getCurrentUser } from "@/lib/auth";
 import { loginAction } from "./actions";
 
@@ -53,57 +49,49 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </div>
 
         {statusMessage ? (
-          <Alert variant="success" className="mb-5">
-            <AlertDescription>{statusMessage}</AlertDescription>
-          </Alert>
+          <div className="mb-5 rounded-2xl border border-lime-300/30 bg-lime-300/10 px-4 py-3 text-sm text-lime-100">
+            {statusMessage}
+          </div>
         ) : null}
 
         {message ? (
-          <Alert variant="destructive" className="mb-5">
-            <AlertDescription>{message}</AlertDescription>
-          </Alert>
+          <div className="mb-5 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+            {message}
+          </div>
         ) : null}
 
-        <form action={loginAction}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="login-username" className="text-sm font-semibold text-zinc-200">
-                Username
-              </FieldLabel>
-              <Input
-                id="login-username"
-                className="h-14 rounded-2xl bg-zinc-950 px-4 text-base focus-visible:border-lime-300 focus-visible:ring-lime-300/20"
-                name="username"
-                type="text"
-                autoCapitalize="none"
-                autoComplete="username"
-                defaultValue="admin"
-                required
-              />
-            </Field>
+        <form action={loginAction} className="space-y-4">
+          <label className="block">
+            <span className="text-sm font-semibold text-zinc-200">Username</span>
+            <input
+              className="mt-2 h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base text-zinc-50 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
+              name="username"
+              type="text"
+              autoCapitalize="none"
+              autoComplete="username"
+              defaultValue="admin"
+              required
+            />
+          </label>
 
-            <Field>
-              <FieldLabel htmlFor="login-password" className="text-sm font-semibold text-zinc-200">
-                Password
-              </FieldLabel>
-              <Input
-                id="login-password"
-                className="h-14 rounded-2xl bg-zinc-950 px-4 text-base focus-visible:border-lime-300 focus-visible:ring-lime-300/20"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-              />
-            </Field>
+          <label className="block">
+            <span className="text-sm font-semibold text-zinc-200">Password</span>
+            <input
+              className="mt-2 h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-950 px-4 text-base text-zinc-50 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
+          </label>
 
-            <p className="text-xs leading-5 text-zinc-500">
-              On first setup, sign in as admin. The initial password is printed once in the server logs.
-            </p>
+          <p className="text-xs leading-5 text-zinc-500">
+            On first setup, sign in as admin. The initial password is printed once in the server logs.
+          </p>
 
-            <Button className="h-14 w-full rounded-2xl text-base font-black">
-              Sign in
-            </Button>
-          </FieldGroup>
+          <button className="h-14 w-full rounded-2xl bg-lime-300 px-5 text-base font-black text-zinc-950 transition hover:bg-lime-200">
+            Sign in
+          </button>
         </form>
       </section>
     </main>
