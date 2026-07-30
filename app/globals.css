@@ -234,3 +234,20 @@ body {
     @apply h-12 rounded-xl border border-zinc-800 bg-zinc-900 px-2 text-sm font-bold text-zinc-200 outline-none transition focus:border-lime-300 focus:ring-2 focus:ring-lime-300/20;
   }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes toast-slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .sync-error-toast {
+    animation: toast-slide-up 220ms var(--ease-standard);
+  }
+}

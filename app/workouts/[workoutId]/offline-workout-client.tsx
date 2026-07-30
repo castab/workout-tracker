@@ -25,7 +25,7 @@ type OfflineWorkoutClientProps = {
   syncMode?: "server" | "local";
 };
 
-type SyncState = "online" | "offline" | "syncing" | "pending";
+type SyncState = "online" | "offline" | "syncing" | "error";
 
 function createId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
@@ -137,13 +137,11 @@ function applyOperation(snapshot: WorkoutSnapshot, item: OfflineWorkoutOperation
 }
 
 function StatusBanner({ state, pendingCount }: { state: SyncState; pendingCount: number }) {
-  if (state === "online" && pendingCount === 0) return null;
+  if (state !== "offline") return null;
 
-  const text = state === "offline"
-    ? `${pendingCount} offline change${pendingCount === 1 ? "" : "s"} queued.`
-    : state === "syncing"
-      ? "Syncing offline changes..."
-      : `${pendingCount} change${pendingCount === 1 ? "" : "s"} waiting to sync.`;
+  const text = pendingCount > 0
+    ? `Offline — ${pendingCount} change${pendingCount === 1 ? "" : "s"} will sync when you're back online.`
+    : "You're offline. Changes will sync automatically when you're back online.";
 
   return (
     <div
@@ -157,6 +155,68 @@ function StatusBanner({ state, pendingCount }: { state: SyncState; pendingCount:
       }}
     >
       {text}
+    </div>
+  );
+}
+
+function SyncErrorToast({ pendingCount }: { pendingCount: number }) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        left: 0,
+        right: 0,
+        bottom: "calc(var(--space-4) + env(safe-area-inset-bottom))",
+        display: "grid",
+        placeItems: "center",
+        padding: "0 var(--page-px)",
+        zIndex: 50,
+        pointerEvents: "none",
+      }}
+    >
+      <div
+        role="alert"
+        className="sync-error-toast"
+        style={{
+          pointerEvents: "auto",
+          width: "100%",
+          maxWidth: "var(--content-max)",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "var(--space-3)",
+          borderRadius: "var(--radius-md)",
+          border: "1px solid var(--border-danger)",
+          background: "var(--danger-wash)",
+          color: "var(--text-danger)",
+          padding: "var(--space-4)",
+          boxShadow: "0 8px 24px rgba(0, 0, 0, 0.24)",
+        }}
+      >
+        <svg
+          aria-hidden="true"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth={1.5}
+          stroke="currentColor"
+          style={{ width: 24, height: 24, flexShrink: 0, marginTop: 1 }}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"
+          />
+        </svg>
+
+        <div style={{ flex: 1 }}>
+          <strong style={{ display: "block", font: "var(--type-body-strong)", lineHeight: 1.2 }}>
+            Sync failed
+          </strong>
+          <p style={{ margin: "var(--space-1) 0 0", font: "var(--type-body)" }}>
+            {pendingCount} change{pendingCount === 1 ? "" : "s"} couldn&apos;t be saved. We&apos;ll keep retrying automatically.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -222,7 +282,7 @@ export function OfflineWorkoutClient({
       setPendingCount(0);
       setSyncState("online");
     } catch {
-      setSyncState("pending");
+      setSyncState("error");
     }
   }, [snapshot.id, syncMode]);
 
@@ -241,10 +301,11 @@ export function OfflineWorkoutClient({
     await addPendingOperation(snapshot.id, item);
     const operations = await getPendingOperations(snapshot.id);
     setPendingCount(operations.length);
-    setSyncState(navigator.onLine ? "pending" : "offline");
 
     if (navigator.onLine) {
       await syncPending();
+    } else {
+      setSyncState("offline");
     }
   }
 
@@ -297,6 +358,16 @@ export function OfflineWorkoutClient({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [initialSnapshot, syncPending]);
+
+  useEffect(() => {
+    if (syncState !== "error") return;
+
+    const retry = setInterval(() => {
+      void syncPending();
+    }, 20_000);
+
+    return () => clearInterval(retry);
+  }, [syncState, syncPending]);
 
   // The focused exercise can vanish when a sync replaces the snapshot (temp ids
   // become real ones) or when it is deleted. Fall back to the first exercise.
@@ -451,6 +522,7 @@ export function OfflineWorkoutClient({
         </header>
 
         <StatusBanner state={syncState} pendingCount={pendingCount} />
+        {syncState === "error" ? <SyncErrorToast pendingCount={pendingCount} /> : null}
 
         {focusEntry ? (
           <FocusExerciseCard
