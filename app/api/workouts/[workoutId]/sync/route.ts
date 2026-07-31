@@ -9,6 +9,10 @@ type RouteContext = {
   params: Promise<{ workoutId: string }>;
 };
 
+const noStoreHeaders = {
+  "Cache-Control": "private, no-cache, no-store, max-age=0, must-revalidate",
+};
+
 function metricData(setId: string, metrics: OfflineMetric[]) {
   return metrics.map((metric) => ({
     setId,
@@ -18,13 +22,22 @@ function metricData(setId: string, metrics: OfflineMetric[]) {
   }));
 }
 
-async function activeWorkoutExists(workoutId: string, userId: string) {
-  const workout = await prisma.workout.findUnique({
-    where: { id: workoutId },
-    select: { endedAt: true, userId: true },
-  });
+async function snapshotResponse(workoutId: string, userId: string) {
+  return NextResponse.json(
+    { snapshot: await getWorkoutSnapshot(workoutId, userId) },
+    { headers: noStoreHeaders },
+  );
+}
 
-  return workout?.userId === userId && workout.endedAt === null;
+export async function GET(_request: Request, context: RouteContext) {
+  if (isDemoMode()) {
+    return NextResponse.json({ error: "Sync is disabled in demo mode." }, { status: 404 });
+  }
+
+  const user = await requireUser();
+  const { workoutId } = await context.params;
+
+  return snapshotResponse(workoutId, user.id);
 }
 
 export async function POST(request: Request, context: RouteContext) {
@@ -33,158 +46,190 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const user = await requireUser();
-
   const { workoutId } = await context.params;
   const body = (await request.json()) as { operations?: OfflineWorkoutOperation[] };
   const operations = body.operations ?? [];
-  const idMap = new Map<string, string>();
 
-  if (!(await activeWorkoutExists(workoutId, user.id))) {
-    return NextResponse.json({ snapshot: await getWorkoutSnapshot(workoutId, user.id) });
+  if (operations.length === 0) {
+    return snapshotResponse(workoutId, user.id);
   }
 
-  for (const operation of operations) {
-    if (!(await activeWorkoutExists(workoutId, user.id))) {
-      break;
-    }
-
-    if (operation.type === "addExercise") {
-      const name = operation.payload.name.trim();
-      const variant = (operation.payload.variant ?? "").trim();
-
-      if (!name) continue;
-
-      const exercise = await prisma.exercise.upsert({
-        where: { name },
-        update: {},
-        create: { name },
-      });
-      const lastExercise = await prisma.workoutExercise.findFirst({
-        where: { workoutId },
-        orderBy: { order: "desc" },
-      });
-      const workoutExercise = await prisma.workoutExercise.create({
-        data: {
-          workoutId,
-          exerciseId: exercise.id,
-          variant,
-          order: (lastExercise?.order ?? -1) + 1,
-        },
-      });
-
-      idMap.set(operation.payload.tempWorkoutExerciseId, workoutExercise.id);
-    }
-
-    if (operation.type === "removeExercise") {
-      const workoutExerciseId = idMap.get(operation.payload.workoutExerciseId) ?? operation.payload.workoutExerciseId;
-
-      await prisma.workoutExercise.deleteMany({ where: { id: workoutExerciseId, workoutId } });
-    }
-
-    if (operation.type === "updateExerciseName") {
-      const workoutExerciseId = idMap.get(operation.payload.workoutExerciseId) ?? operation.payload.workoutExerciseId;
-      const name = operation.payload.name.trim();
-
-      if (!name) continue;
-
-      const workoutExercise = await prisma.workoutExercise.findUnique({
-        where: { id: workoutExerciseId },
-        include: { exercise: true },
-      });
-
-      if (!workoutExercise || workoutExercise.workoutId !== workoutId) continue;
-
-      const exercise = await prisma.exercise.upsert({
-        where: { name },
-        update: {},
-        create: { name },
-      });
-
-      await prisma.workoutExercise.update({
-        where: { id: workoutExerciseId },
-        data: { exerciseId: exercise.id },
-      });
-    }
-
-    if (operation.type === "updateExerciseVariant") {
-      const workoutExerciseId = idMap.get(operation.payload.workoutExerciseId) ?? operation.payload.workoutExerciseId;
-      const variant = operation.payload.variant.trim();
-
-      await prisma.workoutExercise.updateMany({
-        where: { id: workoutExerciseId, workoutId },
-        data: { variant },
-      });
-    }
-
-    if (operation.type === "addSet") {
-      const workoutExerciseId = idMap.get(operation.payload.workoutExerciseId) ?? operation.payload.workoutExerciseId;
-
-      if (operation.payload.metrics.length === 0) continue;
-
-      const workoutExercise = await prisma.workoutExercise.findUnique({ where: { id: workoutExerciseId } });
-
-      if (!workoutExercise || workoutExercise.workoutId !== workoutId) continue;
-
-      const lastSet = await prisma.exerciseSet.findFirst({
-        where: { workoutExerciseId },
-        orderBy: { order: "desc" },
-      });
-      const set = await prisma.exerciseSet.create({
-        data: {
-          workoutExerciseId,
-          order: (lastSet?.order ?? -1) + 1,
-          metrics: { create: operation.payload.metrics },
-        },
-      });
-
-      idMap.set(operation.payload.tempSetId, set.id);
-    }
-
-    if (operation.type === "updateSet") {
-      const setId = idMap.get(operation.payload.setId) ?? operation.payload.setId;
-
-      if (operation.payload.metrics.length === 0) continue;
-
-      const set = await prisma.exerciseSet.findUnique({
-        where: { id: setId },
-        include: { workoutExercise: { select: { workoutId: true } } },
-      });
-
-      if (!set || set.workoutExercise.workoutId !== workoutId) continue;
-
-      await prisma.$transaction([
-        prisma.setMetric.deleteMany({ where: { setId } }),
-        prisma.setMetric.createMany({ data: metricData(setId, operation.payload.metrics) }),
-      ]);
-    }
-
-    if (operation.type === "deleteSet") {
-      const setId = idMap.get(operation.payload.setId) ?? operation.payload.setId;
-      const set = await prisma.exerciseSet.findUnique({
-        where: { id: setId },
-        include: { workoutExercise: { select: { workoutId: true } } },
-      });
-
-      if (!set || set.workoutExercise.workoutId !== workoutId) continue;
-
-      await prisma.exerciseSet.delete({ where: { id: setId } });
-    }
-
-    if (operation.type === "finishWorkout") {
-      const workout = await prisma.workout.findUnique({
+  await prisma.$transaction(
+    async (tx) => {
+      const workout = await tx.workout.findUnique({
         where: { id: workoutId },
-        select: { userId: true, exercises: { select: { sets: { select: { id: true } } } } },
+        select: { endedAt: true, userId: true },
       });
-      const canFinish = workout?.userId === user.id && workout.exercises.length > 0 && workout.exercises.every((exercise) => exercise.sets.length > 0);
 
-      if (canFinish) {
-        await prisma.workout.updateMany({
-          where: { id: workoutId, userId: user.id, endedAt: null },
-          data: { endedAt: new Date() },
+      if (!workout || workout.userId !== user.id || workout.endedAt !== null) {
+        return;
+      }
+
+      for (const operation of operations) {
+      if (operation.type === "addExercise") {
+        const name = operation.payload.name.trim();
+        const variant = (operation.payload.variant ?? "").trim();
+
+        if (!name) continue;
+
+        const existingEntry = await tx.workoutExercise.findUnique({
+          where: { id: operation.payload.tempWorkoutExerciseId },
+          select: { workoutId: true },
+        });
+
+        if (existingEntry) {
+          continue;
+        }
+
+        const exercise = await tx.exercise.upsert({
+          where: { name },
+          update: {},
+          create: { name },
+        });
+        const lastExercise = await tx.workoutExercise.findFirst({
+          where: { workoutId },
+          orderBy: { order: "desc" },
+        });
+
+        await tx.workoutExercise.create({
+          data: {
+            id: operation.payload.tempWorkoutExerciseId,
+            workoutId,
+            exerciseId: exercise.id,
+            variant,
+            order: (lastExercise?.order ?? -1) + 1,
+          },
         });
       }
-    }
-  }
 
-  return NextResponse.json({ snapshot: await getWorkoutSnapshot(workoutId, user.id) });
+      if (operation.type === "removeExercise") {
+        await tx.workoutExercise.deleteMany({
+          where: { id: operation.payload.workoutExerciseId, workoutId },
+        });
+      }
+
+      if (operation.type === "updateExerciseName") {
+        const name = operation.payload.name.trim();
+
+        if (!name) continue;
+
+        const workoutExercise = await tx.workoutExercise.findUnique({
+          where: { id: operation.payload.workoutExerciseId },
+          select: { workoutId: true },
+        });
+
+        if (!workoutExercise || workoutExercise.workoutId !== workoutId) continue;
+
+        const exercise = await tx.exercise.upsert({
+          where: { name },
+          update: {},
+          create: { name },
+        });
+
+        await tx.workoutExercise.update({
+          where: { id: operation.payload.workoutExerciseId },
+          data: { exerciseId: exercise.id },
+        });
+      }
+
+      if (operation.type === "updateExerciseVariant") {
+        await tx.workoutExercise.updateMany({
+          where: { id: operation.payload.workoutExerciseId, workoutId },
+          data: { variant: operation.payload.variant.trim() },
+        });
+      }
+
+      if (operation.type === "addSet") {
+        if (operation.payload.metrics.length === 0) continue;
+
+        const existingSet = await tx.exerciseSet.findUnique({
+          where: { id: operation.payload.tempSetId },
+          select: { workoutExercise: { select: { workoutId: true } } },
+        });
+
+        if (existingSet) {
+          continue;
+        }
+
+        const workoutExercise = await tx.workoutExercise.findUnique({
+          where: { id: operation.payload.workoutExerciseId },
+          select: { workoutId: true },
+        });
+
+        if (!workoutExercise || workoutExercise.workoutId !== workoutId) continue;
+
+        const lastSet = await tx.exerciseSet.findFirst({
+          where: { workoutExerciseId: operation.payload.workoutExerciseId },
+          orderBy: { order: "desc" },
+        });
+
+        await tx.exerciseSet.create({
+          data: {
+            id: operation.payload.tempSetId,
+            workoutExerciseId: operation.payload.workoutExerciseId,
+            order: (lastSet?.order ?? -1) + 1,
+            metrics: { create: operation.payload.metrics },
+          },
+        });
+      }
+
+      if (operation.type === "updateSet") {
+        if (operation.payload.metrics.length === 0) continue;
+
+        const set = await tx.exerciseSet.findUnique({
+          where: { id: operation.payload.setId },
+          select: { workoutExercise: { select: { workoutId: true } } },
+        });
+
+        if (!set || set.workoutExercise.workoutId !== workoutId) continue;
+
+        await tx.setMetric.deleteMany({ where: { setId: operation.payload.setId } });
+        await tx.setMetric.createMany({
+          data: metricData(operation.payload.setId, operation.payload.metrics),
+        });
+      }
+
+      if (operation.type === "deleteSet") {
+        const set = await tx.exerciseSet.findUnique({
+          where: { id: operation.payload.setId },
+          select: { workoutExercise: { select: { workoutId: true } } },
+        });
+
+        if (!set || set.workoutExercise.workoutId !== workoutId) continue;
+
+        await tx.exerciseSet.delete({ where: { id: operation.payload.setId } });
+      }
+
+      if (operation.type === "finishWorkout") {
+        const workoutToFinish = await tx.workout.findUnique({
+          where: { id: workoutId },
+          select: {
+            userId: true,
+            exercises: { select: { sets: { select: { id: true } } } },
+          },
+        });
+        const canFinish =
+          workoutToFinish?.userId === user.id &&
+          workoutToFinish.exercises.length > 0 &&
+          workoutToFinish.exercises.every((exercise) => exercise.sets.length > 0);
+
+        if (canFinish) {
+          await tx.workout.update({
+            where: { id: workoutId },
+            data: { endedAt: new Date() },
+          });
+          break;
+        }
+      }
+      }
+
+      await tx.workout.update({
+        where: { id: workoutId },
+        data: { revision: { increment: 1 } },
+      });
+    },
+    { maxWait: 5_000, timeout: 15_000 },
+  );
+
+  return snapshotResponse(workoutId, user.id);
 }

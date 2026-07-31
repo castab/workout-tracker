@@ -27,6 +27,7 @@ async function getWorkoutRow(workoutId: string, userId?: string) {
 export function serializeWorkoutSnapshot(workout: WorkoutRow): WorkoutSnapshot {
   return {
     id: workout.id,
+    revision: workout.revision,
     startedAt: workout.startedAt.toISOString(),
     endedAt: workout.endedAt?.toISOString() ?? null,
     exercises: workout.exercises.map((entry) => ({

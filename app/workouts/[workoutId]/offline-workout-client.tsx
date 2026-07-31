@@ -1,18 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/app/material-icon";
 import { AddExercisePanel } from "@/app/workouts/[workoutId]/add-exercise-panel";
 import { CollapsedExerciseRow } from "@/app/workouts/[workoutId]/collapsed-exercise-row";
 import { FocusExerciseCard } from "@/app/workouts/[workoutId]/focus-exercise-card";
 import {
   addPendingOperation,
-  clearPendingOperations,
+  acknowledgePendingOperations,
   getCachedWorkoutSnapshot,
   getPendingOperations,
   saveWorkoutSnapshot,
 } from "./offline-workout-store";
+import {
+  applyWorkoutOperation,
+  chooseWorkoutSnapshot,
+  overlayWorkoutOperations,
+} from "@/lib/workout-sync-client";
 import { type ExerciseMode, deriveMode } from "@/lib/workout-metrics";
 import { type ExerciseSuggestion, findSuggestion } from "@/lib/workout-suggestions";
 import type { OfflineMetric, OfflineWorkoutOperation, WorkoutSnapshot } from "@/lib/workout-sync-types";
@@ -27,6 +32,15 @@ type OfflineWorkoutClientProps = {
 
 type SyncState = "online" | "offline" | "syncing" | "error";
 
+type SyncRequestOptions = {
+  keepalive?: boolean;
+  uploadOnly?: boolean;
+};
+
+const foregroundSyncIntervalMs = 30_000;
+const failedSyncRetryIntervalMs = 20_000;
+const syncTimeoutMs = 10_000;
+
 function createId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
 }
@@ -38,102 +52,6 @@ function operation(type: OfflineWorkoutOperation["type"], payload: OfflineWorkou
     createdAt: new Date().toISOString(),
     payload,
   } as OfflineWorkoutOperation;
-}
-
-function applyOperation(snapshot: WorkoutSnapshot, item: OfflineWorkoutOperation): WorkoutSnapshot {
-  if (item.type === "addExercise") {
-    const nextOrder = Math.max(-1, ...snapshot.exercises.map((entry) => entry.order)) + 1;
-
-    return {
-      ...snapshot,
-      exercises: [
-        {
-          id: item.payload.tempWorkoutExerciseId,
-          order: nextOrder,
-          variant: item.payload.variant ?? "",
-          exercise: { name: item.payload.name },
-          sets: [],
-        },
-        ...snapshot.exercises,
-      ],
-    };
-  }
-
-  if (item.type === "removeExercise") {
-    return {
-      ...snapshot,
-      exercises: snapshot.exercises.filter((entry) => entry.id !== item.payload.workoutExerciseId),
-    };
-  }
-
-  if (item.type === "updateExerciseName") {
-    return {
-      ...snapshot,
-      exercises: snapshot.exercises.map((entry) =>
-        entry.id === item.payload.workoutExerciseId
-          ? { ...entry, exercise: { name: item.payload.name } }
-          : entry,
-      ),
-    };
-  }
-
-  if (item.type === "updateExerciseVariant") {
-    return {
-      ...snapshot,
-      exercises: snapshot.exercises.map((entry) =>
-        entry.id === item.payload.workoutExerciseId
-          ? { ...entry, variant: item.payload.variant }
-          : entry,
-      ),
-    };
-  }
-
-  if (item.type === "addSet") {
-    return {
-      ...snapshot,
-      exercises: snapshot.exercises.map((entry) => {
-        if (entry.id !== item.payload.workoutExerciseId) return entry;
-
-        const nextOrder = Math.max(-1, ...entry.sets.map((set) => set.order)) + 1;
-
-        return {
-          ...entry,
-          sets: [
-            ...entry.sets,
-            { id: item.payload.tempSetId, order: nextOrder, metrics: item.payload.metrics },
-          ],
-        };
-      }),
-    };
-  }
-
-  if (item.type === "updateSet") {
-    return {
-      ...snapshot,
-      exercises: snapshot.exercises.map((entry) => ({
-        ...entry,
-        sets: entry.sets.map((set) =>
-          set.id === item.payload.setId ? { ...set, metrics: item.payload.metrics } : set,
-        ),
-      })),
-    };
-  }
-
-  if (item.type === "deleteSet") {
-    return {
-      ...snapshot,
-      exercises: snapshot.exercises.map((entry) => ({
-        ...entry,
-        sets: entry.sets.filter((set) => set.id !== item.payload.setId),
-      })),
-    };
-  }
-
-  if (item.type === "finishWorkout") {
-    return { ...snapshot, endedAt: new Date().toISOString() };
-  }
-
-  return snapshot;
 }
 
 function StatusBanner({ state, pendingCount }: { state: SyncState; pendingCount: number }) {
@@ -210,10 +128,12 @@ function SyncErrorToast({ pendingCount }: { pendingCount: number }) {
 
         <div style={{ flex: 1 }}>
           <strong style={{ display: "block", font: "var(--type-body-strong)", lineHeight: 1.2 }}>
-            Sync failed
+            {pendingCount > 0 ? "Changes not synced" : "Connection unavailable"}
           </strong>
           <p style={{ margin: "var(--space-1) 0 0", font: "var(--type-body)" }}>
-            {pendingCount} change{pendingCount === 1 ? "" : "s"} couldn&apos;t be saved. We&apos;ll keep retrying automatically.
+            {pendingCount > 0
+              ? `${pendingCount} change${pendingCount === 1 ? "" : "s"} couldn't be saved. We'll keep retrying automatically.`
+              : "We couldn't reach the server. We'll keep checking automatically."}
           </p>
         </div>
       </div>
@@ -240,90 +160,212 @@ export function OfflineWorkoutClient({
   // records an explicit override so an empty exercise can be switched to cardio
   // before it has any metrics to derive from.
   const [modeOverrides, setModeOverrides] = useState<Record<string, ExerciseMode>>({});
+  const snapshotRef = useRef(initialSnapshot);
+  const mountedRef = useRef(false);
+  const persistenceRef = useRef<Promise<void>>(Promise.resolve());
+  const localGenerationRef = useRef(0);
+  const syncPromiseRef = useRef<Promise<void> | null>(null);
+  const syncRequestedRef = useRef(false);
+  const fullSyncRequestedRef = useRef(false);
+  const keepaliveRequestedRef = useRef(false);
+  const syncPendingRef = useRef<(options?: SyncRequestOptions) => Promise<void>>(
+    () => Promise.resolve(),
+  );
 
   const canFinishWorkout = snapshot.exercises.length > 0 && snapshot.exercises.every((entry) => entry.sets.length > 0);
 
-  const syncPending = useCallback(async () => {
+  const replaceSnapshot = useCallback((nextSnapshot: WorkoutSnapshot) => {
+    snapshotRef.current = nextSnapshot;
+
+    if (mountedRef.current) {
+      setSnapshot(nextSnapshot);
+    }
+  }, []);
+
+  const enqueuePersistence = useCallback((write: () => Promise<void>) => {
+    const nextWrite = persistenceRef.current
+      .catch(() => undefined)
+      .then(write);
+
+    persistenceRef.current = nextWrite;
+    return nextWrite;
+  }, []);
+
+  const syncPending = useCallback((options: SyncRequestOptions = {}) => {
     if (syncMode === "local") {
       setPendingCount(0);
       setSyncState("online");
-      return;
+      return Promise.resolve();
     }
 
-    if (!navigator.onLine) {
-      setSyncState("offline");
-      return;
+    syncRequestedRef.current = true;
+    keepaliveRequestedRef.current ||= options.keepalive === true;
+
+    if (!options.uploadOnly) {
+      fullSyncRequestedRef.current = true;
     }
 
-    const operations = await getPendingOperations(snapshot.id);
-    setPendingCount(operations.length);
-
-    if (operations.length === 0) {
-      setSyncState("online");
-      return;
+    if (syncPromiseRef.current) {
+      return syncPromiseRef.current;
     }
 
-    setSyncState("syncing");
+    const syncPromise = (async () => {
+      while (syncRequestedRef.current) {
+        syncRequestedRef.current = false;
 
-    try {
-      const response = await fetch(`/api/workouts/${snapshot.id}/sync`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ operations }),
-      });
+        const uploadOnly = !fullSyncRequestedRef.current;
+        const keepalive = keepaliveRequestedRef.current;
 
-      if (!response.ok) throw new Error("Sync failed");
+        fullSyncRequestedRef.current = false;
+        keepaliveRequestedRef.current = false;
 
-      const data = (await response.json()) as { snapshot: WorkoutSnapshot };
+        await persistenceRef.current.catch(() => undefined);
 
-      await clearPendingOperations(snapshot.id);
-      await saveWorkoutSnapshot(data.snapshot);
-      setSnapshot(data.snapshot);
-      setPendingCount(0);
-      setSyncState("online");
-    } catch {
-      setSyncState("error");
-    }
-  }, [snapshot.id, syncMode]);
+        if (!navigator.onLine) {
+          if (mountedRef.current) setSyncState("offline");
+          break;
+        }
+
+        const operations = await getPendingOperations(initialSnapshot.id);
+
+        if (mountedRef.current) {
+          setPendingCount(operations.length);
+        }
+
+        if (uploadOnly && operations.length === 0) {
+          continue;
+        }
+
+        if (mountedRef.current) {
+          setSyncState("syncing");
+        }
+
+        const abortController = new AbortController();
+        const timeout = window.setTimeout(() => abortController.abort(), syncTimeoutMs);
+
+        try {
+          const response = await fetch(`/api/workouts/${initialSnapshot.id}/sync`, {
+            method: operations.length > 0 ? "POST" : "GET",
+            headers: operations.length > 0 ? { "Content-Type": "application/json" } : undefined,
+            body: operations.length > 0 ? JSON.stringify({ operations }) : undefined,
+            cache: "no-store",
+            keepalive,
+            signal: abortController.signal,
+          });
+
+          if (!response.ok) throw new Error("Sync failed");
+
+          const data = (await response.json()) as { snapshot: WorkoutSnapshot };
+
+          if (operations.length > 0) {
+            await acknowledgePendingOperations(operations.map((item) => item.id));
+          }
+
+          let generation: number;
+          let remainingOperations: OfflineWorkoutOperation[];
+
+          do {
+            generation = localGenerationRef.current;
+            await persistenceRef.current.catch(() => undefined);
+            remainingOperations = await getPendingOperations(initialSnapshot.id);
+          } while (generation !== localGenerationRef.current);
+
+          const nextSnapshot = overlayWorkoutOperations(data.snapshot, remainingOperations);
+
+          replaceSnapshot(nextSnapshot);
+          await saveWorkoutSnapshot(nextSnapshot);
+
+          if (mountedRef.current) {
+            setPendingCount(remainingOperations.length);
+            setSyncState("online");
+          }
+
+          if (remainingOperations.length > 0) {
+            syncRequestedRef.current = true;
+          }
+        } catch {
+          if (mountedRef.current) {
+            setSyncState(navigator.onLine ? "error" : "offline");
+          }
+          break;
+        } finally {
+          window.clearTimeout(timeout);
+        }
+      }
+    })().catch(() => {
+      if (mountedRef.current) {
+        setSyncState(navigator.onLine ? "error" : "offline");
+      }
+    });
+
+    syncPromiseRef.current = syncPromise;
+
+    void syncPromise.then(() => {
+      syncPromiseRef.current = null;
+
+      if (syncRequestedRef.current && mountedRef.current) {
+        void syncPendingRef.current();
+      }
+    });
+
+    return syncPromise;
+  }, [initialSnapshot.id, replaceSnapshot, syncMode]);
+
+  useEffect(() => {
+    syncPendingRef.current = syncPending;
+  }, [syncPending]);
 
   async function queue(item: OfflineWorkoutOperation) {
-    const nextSnapshot = applyOperation(snapshot, item);
+    const nextSnapshot = applyWorkoutOperation(snapshotRef.current, item);
 
-    setSnapshot(nextSnapshot);
-    await saveWorkoutSnapshot(nextSnapshot);
+    localGenerationRef.current += 1;
+    replaceSnapshot(nextSnapshot);
 
     if (syncMode === "local") {
+      await enqueuePersistence(() => saveWorkoutSnapshot(nextSnapshot));
       setPendingCount(0);
       setSyncState("online");
       return;
     }
 
-    await addPendingOperation(snapshot.id, item);
-    const operations = await getPendingOperations(snapshot.id);
-    setPendingCount(operations.length);
+    try {
+      await enqueuePersistence(async () => {
+        await addPendingOperation(initialSnapshot.id, item);
+        await saveWorkoutSnapshot(nextSnapshot);
+      });
 
-    if (navigator.onLine) {
+      const operations = await getPendingOperations(initialSnapshot.id);
+      setPendingCount(operations.length);
       await syncPending();
-    } else {
-      setSyncState("offline");
+    } catch {
+      setSyncState("error");
     }
   }
 
   useEffect(() => {
-    let isMounted = true;
+    mountedRef.current = true;
 
     async function load() {
-      const cached = await getCachedWorkoutSnapshot(initialSnapshot.id);
-      const operations = await getPendingOperations(initialSnapshot.id);
+      let cached: WorkoutSnapshot | undefined;
+      let operations: OfflineWorkoutOperation[];
+      let generation: number;
 
-      if (!isMounted) return;
+      do {
+        generation = localGenerationRef.current;
+        await persistenceRef.current.catch(() => undefined);
+        [cached, operations] = await Promise.all([
+          getCachedWorkoutSnapshot(initialSnapshot.id),
+          getPendingOperations(initialSnapshot.id),
+        ]);
+      } while (generation !== localGenerationRef.current);
 
-      if (cached && operations.length > 0) {
-        setSnapshot(cached);
-      } else {
-        await saveWorkoutSnapshot(initialSnapshot);
-      }
+      if (!mountedRef.current) return;
 
+      const preferredSnapshot = chooseWorkoutSnapshot(initialSnapshot, cached, operations);
+      const hydratedSnapshot = overlayWorkoutOperations(preferredSnapshot, operations);
+
+      replaceSnapshot(hydratedSnapshot);
+      await saveWorkoutSnapshot(hydratedSnapshot);
       setPendingCount(operations.length);
       void syncPending();
     }
@@ -340,37 +382,69 @@ export function OfflineWorkoutClient({
       void syncPending();
     }
 
+    function handleFocus() {
+      if (document.visibilityState === "visible") {
+        void syncPending();
+      }
+    }
+
+    function handlePageHide() {
+      void syncPending({ keepalive: true, uploadOnly: true });
+    }
+
     function handleVisibilityChange() {
-      if (document.visibilityState === "visible") void syncPending();
+      if (document.visibilityState === "visible") {
+        void syncPending();
+      } else {
+        void syncPending({ keepalive: true, uploadOnly: true });
+      }
     }
 
     void load();
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     window.addEventListener("pageshow", handlePageShow);
+    window.addEventListener("pagehide", handlePageHide);
+    window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      isMounted = false;
+      mountedRef.current = false;
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("pagehide", handlePageHide);
+      window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [initialSnapshot, syncPending]);
+  }, [initialSnapshot, replaceSnapshot, syncPending]);
+
+  useEffect(() => {
+    if (syncMode === "local") return;
+
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void syncPending();
+      }
+    }, foregroundSyncIntervalMs);
+
+    return () => window.clearInterval(interval);
+  }, [syncMode, syncPending]);
 
   useEffect(() => {
     if (syncState !== "error") return;
 
-    const retry = setInterval(() => {
-      void syncPending();
-    }, 20_000);
+    const retry = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void syncPending();
+      }
+    }, failedSyncRetryIntervalMs);
 
-    return () => clearInterval(retry);
+    return () => window.clearInterval(retry);
   }, [syncState, syncPending]);
 
-  // The focused exercise can vanish when a sync replaces the snapshot (temp ids
-  // become real ones) or when it is deleted. Fall back to the first exercise.
+  // The focused exercise can vanish when another client deletes it. Fall back
+  // to the first remaining exercise.
   const focusIndex = snapshot.exercises.findIndex((entry) => entry.id === focusId);
   const focusEntry = focusIndex >= 0 ? snapshot.exercises[focusIndex] : snapshot.exercises[0];
   const otherExercises = snapshot.exercises.filter((entry) => entry.id !== focusEntry?.id);
