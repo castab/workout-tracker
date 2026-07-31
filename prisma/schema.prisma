@@ -59,6 +59,7 @@ model Session {
 model Workout {
   id        String            @id @default(cuid())
   userId    String
+  revision  Int               @default(0)
   startedAt DateTime          @default(now()) @db.Timestamptz(3)
   endedAt   DateTime?         @db.Timestamptz(3)
   emphasis  String            @default("")

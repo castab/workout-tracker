@@ -136,6 +136,8 @@ The app is installable as a PWA and includes offline support for gym dead zones.
 - Recently visited same-origin pages are cached with a network-first strategy, so previously opened workout pages can be viewed offline.
 - Active workout edits use an IndexedDB-backed mutation queue for add/edit/delete set and exercise changes while offline.
 - Queued workout changes sync back to Postgres through `/api/workouts/[workoutId]/sync` when connectivity returns.
+- Visible active workouts quietly reconcile with Postgres every 30 seconds and immediately after the app resumes, regains focus, or reconnects.
+- Exercise and set additions use stable client-generated IDs, so retrying an uncertain request after mobile suspension does not create duplicates.
 - Offline sync is intentionally scoped to active workout entry. Login, password changes, and first-time auth bootstrap still require the server.
 - Logging out or changing the password redirects to `/login`, where the client asks the service worker to clear cached authenticated pages.
 

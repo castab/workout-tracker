@@ -51,6 +51,7 @@ export function DemoHomeClient() {
   async function createWorkout() {
     const workout: WorkoutSnapshot = {
       id: createId("demo-workout"),
+      revision: 0,
       startedAt: new Date().toISOString(),
       endedAt: null,
       exercises: [],

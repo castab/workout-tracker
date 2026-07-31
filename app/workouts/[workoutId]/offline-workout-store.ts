@@ -9,6 +9,13 @@ const operationStore = "operations";
 
 type StoredOperation = OfflineWorkoutOperation & { workoutId: string };
 
+function normalizeSnapshot(snapshot: WorkoutSnapshot): WorkoutSnapshot {
+  return {
+    ...snapshot,
+    revision: snapshot.revision ?? 0,
+  };
+}
+
 function openDatabase() {
   return new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(databaseName, databaseVersion);
@@ -59,11 +66,15 @@ export async function saveWorkoutSnapshot(snapshot: WorkoutSnapshot) {
 }
 
 export async function getCachedWorkoutSnapshot(workoutId: string) {
-  return withStore<WorkoutSnapshot>(snapshotStore, "readonly", (store) => store.get(workoutId));
+  const snapshot = await withStore<WorkoutSnapshot>(snapshotStore, "readonly", (store) => store.get(workoutId));
+
+  return snapshot ? normalizeSnapshot(snapshot) : undefined;
 }
 
 export async function getAllCachedWorkoutSnapshots() {
-  return withStore<WorkoutSnapshot[]>(snapshotStore, "readonly", (store) => store.getAll());
+  const snapshots = await withStore<WorkoutSnapshot[]>(snapshotStore, "readonly", (store) => store.getAll());
+
+  return snapshots?.map(normalizeSnapshot);
 }
 
 export async function addPendingOperation(workoutId: string, operation: OfflineWorkoutOperation) {
@@ -97,29 +108,12 @@ export async function getPendingOperations(workoutId: string) {
   });
 }
 
-export async function clearPendingOperations(workoutId: string) {
-  const database = await openDatabase();
+export async function acknowledgePendingOperations(operationIds: string[]) {
+  if (operationIds.length === 0) return;
 
-  return new Promise<void>((resolve, reject) => {
-    const transaction = database.transaction(operationStore, "readwrite");
-    const store = transaction.objectStore(operationStore);
-    const index = store.index("workoutId");
-    const request = index.openCursor(workoutId);
-
-    request.onsuccess = () => {
-      const cursor = request.result;
-
-      if (!cursor) {
-        return;
-      }
-
-      cursor.delete();
-      cursor.continue();
-    };
-    request.onerror = () => reject(request.error);
-    transaction.oncomplete = () => {
-      database.close();
-      resolve();
-    };
+  await withStore(operationStore, "readwrite", (store) => {
+    for (const operationId of operationIds) {
+      store.delete(operationId);
+    }
   });
 }

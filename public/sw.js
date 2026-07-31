@@ -1,4 +1,4 @@
-const CACHE_VERSION = "workout-tracker-pwa-v3";
+const CACHE_VERSION = "workout-tracker-pwa-v4";
 const OFFLINE_URL = "/offline";
 const PRECACHE_URLS = [
   OFFLINE_URL,
