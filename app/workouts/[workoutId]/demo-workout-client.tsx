@@ -9,6 +9,7 @@ import type { WorkoutSnapshot } from "@/lib/workout-sync-types";
 function createFallbackSnapshot(workoutId: string): WorkoutSnapshot {
   return {
     id: workoutId,
+    revision: 0,
     startedAt: new Date().toISOString(),
     endedAt: null,
     exercises: [],

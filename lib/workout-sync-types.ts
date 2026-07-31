@@ -6,6 +6,7 @@ export type OfflineMetric = {
 
 export type WorkoutSnapshot = {
   id: string;
+  revision: number;
   startedAt: string;
   endedAt: string | null;
   exercises: {

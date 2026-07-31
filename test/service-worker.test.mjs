@@ -4,7 +4,7 @@ import test from "node:test";
 import vm from "node:vm";
 
 const source = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
-const AUTH_CACHE = "workout-tracker-pwa-v3-auth-pages";
+const AUTH_CACHE = "workout-tracker-pwa-v4-auth-pages";
 
 function response(body, overrides = {}) {
   const value = {
@@ -100,7 +100,7 @@ test("cached workout cold launch returns before a delayed refresh", async () => 
 
 test("offline cold launch uses the precached offline document", async () => {
   const app = harness(async () => { throw new Error("offline"); });
-  app.store("workout-tracker-pwa-v3-public").set("/offline", response("offline", { url: "https://tracker.test/offline" }));
+  app.store("workout-tracker-pwa-v4-public").set("/offline", response("offline", { url: "https://tracker.test/offline" }));
   assert.equal((await app.navigate("/workouts/new")).result.body, "offline");
 });
 
@@ -122,10 +122,10 @@ test("failed background refresh retains the cached workout", async () => {
 test("clear-auth-cache message removes only private navigation documents", async () => {
   const app = harness(async () => response("unused"));
   app.store(AUTH_CACHE).set(request("/workouts/one").url, response("private"));
-  app.store("workout-tracker-pwa-v3-public").set("/offline", response("public"));
+  app.store("workout-tracker-pwa-v4-public").set("/offline", response("public"));
   await app.message({ type: "clear-auth-cache" });
   assert.equal(app.store(AUTH_CACHE).size, 0);
-  assert.equal(app.store("workout-tracker-pwa-v3-public").size, 1);
+  assert.equal(app.store("workout-tracker-pwa-v4-public").size, 1);
 });
 
 test("session expiration clears all authenticated navigation entries", async () => {
