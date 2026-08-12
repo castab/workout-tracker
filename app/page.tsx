@@ -4,6 +4,7 @@ import { isDemoMode } from "@/app/demo-mode";
 import { Icon } from "@/app/material-icon";
 import { logoutAction } from "@/app/login/actions";
 import { LocalDateTime } from "@/app/local-date-time";
+import { RoutinesCard } from "@/app/routines-card";
 import { createWorkoutAction } from "@/app/workouts/actions";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -23,57 +24,95 @@ function WorkoutDate({ date }: { date: Date }) {
   return <LocalDateTime isoString={date.toISOString()} fallback={formatDate(date)} />;
 }
 
+const roundButton = {
+  width: "var(--control-lg)",
+  height: "var(--control-lg)",
+  borderRadius: "var(--radius-pill)",
+  border: "1px solid var(--border-strong)",
+  color: "var(--zinc-200)",
+  transition: "var(--transition-default)",
+} as const;
+
 export default async function Home() {
   if (isDemoMode()) {
     return <DemoHomeClient />;
   }
 
   const user = await requireUser();
-  const workouts = await prisma.workout.findMany({
-    where: { userId: user.id },
-    orderBy: { startedAt: "desc" },
-    take: 8,
-    include: {
-      exercises: {
-        include: { sets: true },
+  const [workouts, routines] = await Promise.all([
+    prisma.workout.findMany({
+      where: { userId: user.id },
+      orderBy: { startedAt: "desc" },
+      take: 8,
+      include: {
+        exercises: {
+          include: { sets: true },
+        },
       },
-    },
-  });
+    }),
+    prisma.routine.findMany({
+      where: { userId: user.id },
+      orderBy: { updatedAt: "desc" },
+      include: { _count: { select: { items: true } } },
+    }),
+  ]);
 
   const activeWorkout = workouts.find((workout) => !workout.endedAt);
 
   return (
-    <main className="min-h-screen bg-zinc-950 px-4 py-5 text-zinc-50">
-      <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
-        <header className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-xl shadow-black/20">
+    <main
+      className="min-h-screen"
+      style={{
+        background: "var(--surface-app)",
+        color: "var(--text-primary)",
+        padding: "var(--page-py) var(--page-px)",
+      }}
+    >
+      <div
+        className="mx-auto flex w-full flex-col"
+        style={{ maxWidth: "var(--content-max)", gap: "var(--stack-gap)" }}
+      >
+        <header
+          className="border p-5"
+          style={{
+            borderRadius: "var(--radius-xl)",
+            borderColor: "var(--border-default)",
+            background: "var(--surface-card)",
+            boxShadow: "var(--shadow-card)",
+          }}
+        >
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.3em] text-lime-300">
+              <p
+                className="text-xs font-bold uppercase"
+                style={{ letterSpacing: "var(--tracking-eyebrow-lg)", color: "var(--text-accent)" }}
+              >
                 Workout Tracker
               </p>
-              <h1 className="mt-3 text-3xl font-black tracking-tight">
+              <h1 className="mt-3" style={{ font: "var(--type-display)", letterSpacing: "var(--tracking-tight)" }}>
                 Ready to train?
               </h1>
-              <p className="mt-2 text-sm text-zinc-400">Password-protected access.</p>
-              <p className="mt-1 text-sm font-semibold text-zinc-300">Signed in as {user.username}</p>
+              <p className="mt-2" style={{ font: "var(--type-body)", color: "var(--text-muted)" }}>
+                Password-protected access.
+              </p>
+              <p className="mt-1" style={{ font: "var(--type-body-strong)", color: "var(--text-secondary)" }}>
+                Signed in as {user.username}
+              </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center" style={{ gap: "var(--space-2)" }}>
               <Link
                 href="/settings"
-                className="grid size-11 place-items-center rounded-full border border-zinc-700 text-zinc-200 transition hover:border-zinc-500"
+                className="grid place-items-center"
                 aria-label="Settings"
                 title="Settings"
+                style={roundButton}
               >
                 <Icon name="settings" size={20} />
               </Link>
 
               <form action={logoutAction}>
-                <button
-                  className="grid size-11 place-items-center rounded-full border border-zinc-700 text-zinc-200 transition hover:border-zinc-500"
-                  aria-label="Logout"
-                  title="Logout"
-                >
+                <button className="grid place-items-center" aria-label="Logout" title="Logout" style={roundButton}>
                   <Icon name="logout" size={20} />
                 </button>
               </form>
@@ -84,35 +123,92 @@ export default async function Home() {
         {activeWorkout ? (
           <Link
             href={`/workouts/${activeWorkout.id}`}
-            className="rounded-3xl border border-lime-300/40 bg-lime-300 p-5 text-zinc-950 shadow-xl shadow-lime-950/20 transition hover:bg-lime-200"
+            className="border p-5"
+            style={{
+              borderRadius: "var(--radius-xl)",
+              borderColor: "var(--border-accent-soft)",
+              background: "var(--accent)",
+              color: "var(--text-on-accent)",
+              boxShadow: "var(--shadow-accent)",
+              transition: "var(--transition-default)",
+            }}
           >
-            <p className="text-sm font-black uppercase tracking-[0.2em]">Active workout</p>
-            <p className="mt-2 text-2xl font-black">Continue workout</p>
-            <p className="mt-1 text-sm font-semibold">
-              Started <WorkoutDate date={activeWorkout.startedAt} />
+            <p
+              className="text-sm font-black uppercase"
+              style={{ letterSpacing: "var(--tracking-eyebrow-sm)" }}
+            >
+              Active workout
+            </p>
+            <p className="mt-2" style={{ font: "var(--weight-black) var(--text-2xl)/1.1 var(--font-sans)" }}>
+              Continue workout
+            </p>
+            <p className="mt-1" style={{ font: "var(--type-body-strong)" }}>
+              {activeWorkout.planName ? `${activeWorkout.planName} · started ` : "Started "}
+              <WorkoutDate date={activeWorkout.startedAt} />
             </p>
           </Link>
         ) : (
           <form action={createWorkoutAction}>
-            <button className="h-16 w-full rounded-3xl bg-lime-300 px-5 text-lg font-black text-zinc-950 shadow-xl shadow-lime-950/20 transition hover:bg-lime-200">
+            <button
+              className="w-full"
+              style={{
+                height: "var(--control-hero)",
+                padding: "0 var(--space-5)",
+                borderRadius: "var(--radius-xl)",
+                border: "1px solid transparent",
+                background: "var(--accent)",
+                color: "var(--text-on-accent)",
+                font: "var(--weight-black) var(--text-lg)/1 var(--font-sans)",
+                boxShadow: "var(--shadow-accent)",
+                cursor: "pointer",
+                transition: "var(--transition-default)",
+              }}
+            >
               Start a new workout
             </button>
           </form>
         )}
 
-        <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
+        <RoutinesCard
+          routines={routines.map((routine) => ({
+            id: routine.id,
+            name: routine.name,
+            note: routine.note,
+            itemCount: routine._count.items,
+          }))}
+        />
+
+        <section
+          className="border p-5"
+          style={{
+            borderRadius: "var(--radius-xl)",
+            borderColor: "var(--border-default)",
+            background: "var(--surface-card)",
+          }}
+        >
           <div className="mb-4 flex items-end justify-between gap-4">
             <div>
-              <h2 className="text-xl font-black">Recent workouts</h2>
-              <p className="text-sm text-zinc-400">Your latest sessions and set counts.</p>
+              <h2 style={{ font: "var(--type-section)" }}>Recent workouts</h2>
+              <p className="mt-1" style={{ font: "var(--type-body)", color: "var(--text-muted)" }}>
+                Your latest sessions and set counts.
+              </p>
             </div>
 
             {activeWorkout ? (
               <form action={createWorkoutAction}>
                 <button
-                  className="grid size-11 place-items-center rounded-full bg-zinc-50 text-zinc-950 transition hover:bg-zinc-200"
+                  className="grid shrink-0 place-items-center"
                   aria-label="New workout"
                   title="New workout"
+                  style={{
+                    width: "var(--control-lg)",
+                    height: "var(--control-lg)",
+                    borderRadius: "var(--radius-pill)",
+                    background: "var(--surface-inverse)",
+                    color: "var(--text-on-accent)",
+                    cursor: "pointer",
+                    transition: "var(--transition-default)",
+                  }}
                 >
                   <Icon name="add" size={22} weight={700} />
                 </button>
@@ -121,36 +217,70 @@ export default async function Home() {
           </div>
 
           {workouts.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-zinc-700 p-6 text-center">
-              <p className="text-sm font-semibold text-zinc-300">No workouts yet.</p>
-              <p className="mt-1 text-sm text-zinc-500">Start one when you get to the gym.</p>
+            <div
+              className="border border-dashed p-6 text-center"
+              style={{ borderRadius: "var(--radius-lg)", borderColor: "var(--border-strong)" }}
+            >
+              <p style={{ margin: 0, font: "var(--type-body-strong)", color: "var(--text-secondary)" }}>
+                No workouts yet.
+              </p>
+              <p style={{ margin: "var(--space-1) 0 0", font: "var(--type-body)", color: "var(--text-faint)" }}>
+                Start one when you get to the gym.
+              </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid" style={{ gap: "var(--space-3)" }}>
               {workouts.map((workout) => {
                 const setCount = workout.exercises.reduce(
                   (count, exercise) => count + exercise.sets.length,
                   0,
                 );
+                const isActive = !workout.endedAt;
 
                 return (
                   <Link
                     href={`/workouts/${workout.id}`}
                     key={workout.id}
-                    className="block rounded-2xl border border-zinc-800 bg-zinc-950 p-4 transition hover:border-zinc-600"
+                    className="flex items-center justify-between"
+                    style={{
+                      gap: "var(--space-3)",
+                      minHeight: 56,
+                      padding: "var(--space-2) var(--space-4)",
+                      borderRadius: "var(--radius-lg)",
+                      background: "var(--surface-sunken)",
+                      border: "1px solid var(--border-default)",
+                      transition: "var(--transition-default)",
+                    }}
                   >
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="font-black"><WorkoutDate date={workout.startedAt} /></p>
-                        <p className="mt-1 text-sm text-zinc-400">
-                          {workout.exercises.length} exercises · {setCount} sets
-                        </p>
-                      </div>
-
-                      <span className="rounded-full bg-zinc-800 px-3 py-1 text-xs font-bold text-zinc-300">
-                        {workout.endedAt ? "Done" : "Active"}
-                      </span>
+                    <div className="min-w-0">
+                      <p style={{ margin: 0, font: "var(--weight-black) var(--text-base)/1.3 var(--font-sans)" }}>
+                        <WorkoutDate date={workout.startedAt} />
+                      </p>
+                      <p
+                        style={{
+                          margin: "var(--space-1) 0 0",
+                          font: "var(--weight-semibold) var(--text-xs)/1 var(--font-mono)",
+                          color: "var(--text-faint)",
+                        }}
+                      >
+                        {workout.exercises.length} exercises · {setCount} sets
+                        {workout.planName ? ` · ${workout.planName}` : ""}
+                      </p>
                     </div>
+
+                    <span
+                      className="shrink-0"
+                      style={{
+                        borderRadius: "var(--radius-pill)",
+                        padding: "var(--space-1) var(--space-3)",
+                        border: `1px solid ${isActive ? "var(--border-accent-soft)" : "transparent"}`,
+                        background: isActive ? "var(--accent-wash)" : "var(--surface-chip)",
+                        color: isActive ? "var(--text-accent)" : "var(--text-secondary)",
+                        font: "var(--weight-bold) var(--text-xs)/1rem var(--font-sans)",
+                      }}
+                    >
+                      {isActive ? "Active" : "Done"}
+                    </span>
                   </Link>
                 );
               })}

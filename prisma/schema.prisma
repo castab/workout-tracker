@@ -39,6 +39,7 @@ model User {
   role         UserRole  @default(USER)
   createdAt    DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+  routines     Routine[]
   sessions     Session[]
   workouts     Workout[]
 }
@@ -64,13 +65,19 @@ model Workout {
   endedAt   DateTime?         @db.Timestamptz(3)
   emphasis  String            @default("")
   notes     String            @default("")
+  routineId String?
+  // Frozen at start so a renamed or deleted routine never relabels this workout.
+  planName  String            @default("")
   createdAt DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt DateTime          @updatedAt @db.Timestamptz(3)
   exercises WorkoutExercise[]
+  planItems WorkoutPlanItem[]
+  routine   Routine?          @relation(fields: [routineId], references: [id], onDelete: SetNull)
   user      User              @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId])
   @@index([startedAt])
+  @@index([routineId])
 }
 
 model Exercise {
@@ -78,7 +85,60 @@ model Exercise {
   name           String            @unique
   createdAt      DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime          @updatedAt @db.Timestamptz(3)
+  planItems      WorkoutPlanItem[]
+  routineItems   RoutineItem[]
   workoutEntries WorkoutExercise[]
+}
+
+/// A reusable plan: "Push day", "Legs". Order is a suggestion — at the gym you
+/// pick whatever machine is free, so nothing here constrains what gets logged.
+model Routine {
+  id        String        @id @default(cuid())
+  userId    String
+  name      String
+  note      String        @default("")
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime      @updatedAt @db.Timestamptz(3)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     RoutineItem[]
+  workouts  Workout[]
+
+  @@index([userId])
+}
+
+model RoutineItem {
+  id         String   @id @default(cuid())
+  routineId  String
+  exerciseId String
+  order      Int
+  variant    String   @default("")
+  /// Free text, display only: "4 × 6-8", "3 × 12-15", "20 min".
+  target     String   @default("")
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  routine    Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  @@unique([routineId, order])
+  @@index([exerciseId])
+}
+
+/// A copy of the routine's items as they stood when the workout started. Editing
+/// or deleting the routine afterwards must never rewrite recorded history.
+model WorkoutPlanItem {
+  id         String   @id @default(cuid())
+  workoutId  String
+  exerciseId String
+  order      Int
+  variant    String   @default("")
+  target     String   @default("")
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  workout    Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@unique([workoutId, order])
+  @@index([exerciseId])
 }
 
 model WorkoutExercise {

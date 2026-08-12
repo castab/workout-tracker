@@ -6,19 +6,8 @@ import { DemoWorkoutClient } from "@/app/workouts/[workoutId]/demo-workout-clien
 import { OfflineWorkoutClient } from "@/app/workouts/[workoutId]/offline-workout-client";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import {
-  deriveMode,
-  formatMetricValue,
-  formatSetCompact,
-  formatSetSummary,
-} from "@/lib/workout-metrics";
-import {
-  type ExerciseSuggestion,
-  type LastSession,
-  type StartingWeight,
-  isWeightUnit,
-} from "@/lib/workout-suggestions";
-import type { OfflineMetric } from "@/lib/workout-sync-types";
+import { formatSetSummary } from "@/lib/workout-metrics";
+import { getExerciseSuggestions } from "@/lib/workout-suggestions-query";
 import { serializeWorkoutSnapshot } from "@/lib/workout-snapshot";
 
 export const dynamic = "force-dynamic";
@@ -40,113 +29,6 @@ function formatDate(date: Date) {
 
 function WorkoutDate({ date }: { date: Date }) {
   return <LocalDateTime isoString={date.toISOString()} fallback={formatDate(date)} weekday="short" />;
-}
-
-type ExerciseSuggestionRow = {
-  id: string;
-  name: string;
-  usageCount: number;
-  lastUsedAt: Date;
-};
-
-async function getExerciseSuggestions(userId: string, workoutId: string): Promise<ExerciseSuggestion[]> {
-  const suggestions = await prisma.$queryRaw<ExerciseSuggestionRow[]>`
-    SELECT
-      e.id,
-      e.name,
-      COUNT(*)::int AS "usageCount",
-      MAX(we."createdAt") AS "lastUsedAt"
-    FROM "WorkoutExercise" we
-    JOIN "Exercise" e ON e.id = we."exerciseId"
-    JOIN "Workout" w ON w.id = we."workoutId"
-    WHERE we."createdAt" >= NOW() - INTERVAL '90 days'
-      AND w."userId" = ${userId}
-      AND w.id <> ${workoutId}
-    GROUP BY e.id, e.name
-    ORDER BY COUNT(*) DESC, MAX(we."createdAt") DESC, e.name ASC
-    LIMIT 50
-  `;
-
-  const exerciseIds = suggestions.map((suggestion) => suggestion.id);
-
-  if (exerciseIds.length === 0) {
-    return [];
-  }
-
-  // One pass feeds both outputs: the starting-weight hints (deduped per
-  // exercise+variant) and the "Last time" line (deduped per exercise).
-  const historyRows = await prisma.workoutExercise.findMany({
-    where: {
-      exerciseId: { in: exerciseIds },
-      workout: {
-        userId,
-        id: { not: workoutId },
-      },
-      sets: { some: {} },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 300,
-    include: {
-      sets: {
-        orderBy: { order: "asc" },
-        include: { metrics: true },
-      },
-    },
-  });
-
-  const startingWeightsByExerciseId = new Map<string, StartingWeight[]>();
-  const lastSessionByExerciseId = new Map<string, LastSession>();
-  const seenExerciseVariants = new Set<string>();
-
-  for (const entry of historyRows) {
-    const metricsBySet: OfflineMetric[][] = entry.sets.map((set) =>
-      set.metrics.map((item) => ({
-        type: item.type,
-        unit: item.unit,
-        value: formatMetricValue(item.value),
-      })),
-    );
-
-    // Rows are ordered newest-first, so the first hit per exercise is the most recent.
-    if (!lastSessionByExerciseId.has(entry.exerciseId) && metricsBySet.length > 0) {
-      lastSessionByExerciseId.set(entry.exerciseId, {
-        performedAt: entry.createdAt.toISOString(),
-        mode: deriveMode(metricsBySet[metricsBySet.length - 1]),
-        setSummaries: metricsBySet.map(formatSetCompact).filter(Boolean),
-      });
-    }
-
-    const firstWeightMetric = metricsBySet
-      .flat()
-      .find((item) => item.type === "WEIGHT" && isWeightUnit(item.unit));
-
-    if (!firstWeightMetric || !isWeightUnit(firstWeightMetric.unit)) continue;
-
-    const variant = entry.variant.trim();
-    const key = `${entry.exerciseId}:${variant.toLowerCase()}`;
-
-    if (seenExerciseVariants.has(key)) continue;
-
-    seenExerciseVariants.add(key);
-
-    const startingWeights = startingWeightsByExerciseId.get(entry.exerciseId) ?? [];
-
-    startingWeights.push({
-      value: firstWeightMetric.value,
-      unit: firstWeightMetric.unit,
-      variant,
-      lastUsedAt: entry.createdAt.toISOString(),
-    });
-
-    startingWeightsByExerciseId.set(entry.exerciseId, startingWeights);
-  }
-
-  return suggestions.map((suggestion) => ({
-    ...suggestion,
-    lastUsedAt: suggestion.lastUsedAt.toISOString(),
-    startingWeights: startingWeightsByExerciseId.get(suggestion.id) ?? [],
-    lastSession: lastSessionByExerciseId.get(suggestion.id) ?? null,
-  }));
 }
 
 export default async function WorkoutPage({ params, searchParams }: WorkoutPageProps) {
@@ -177,6 +59,10 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
               include: { metrics: true },
             },
           },
+        },
+        planItems: {
+          orderBy: { order: "asc" },
+          include: { exercise: true },
         },
       },
     }),
@@ -224,6 +110,14 @@ export default async function WorkoutPage({ params, searchParams }: WorkoutPageP
             <h1 className="mt-2" style={{ font: "var(--type-display)", letterSpacing: "var(--tracking-tight)" }}>
               Workout complete
             </h1>
+            {workout.planName ? (
+              <p
+                className="mt-2 text-xs font-bold uppercase"
+                style={{ letterSpacing: "var(--tracking-eyebrow-sm)", color: "var(--text-accent)" }}
+              >
+                Plan · {workout.planName}
+              </p>
+            ) : null}
           </div>
         </header>
 

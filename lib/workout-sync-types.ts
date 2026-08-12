@@ -4,11 +4,35 @@ export type OfflineMetric = {
   value: string;
 };
 
+export type WorkoutPlanItem = {
+  id: string;
+  order: number;
+  name: string;
+  variant: string;
+  /** Free text, display only: "4 × 6-8". */
+  target: string;
+};
+
+/**
+ * The routine this workout was started from, copied at start. Immutable for the
+ * life of the workout, so no sync operation ever touches it.
+ */
+export type WorkoutPlan = {
+  routineId: string | null;
+  name: string;
+  items: WorkoutPlanItem[];
+};
+
 export type WorkoutSnapshot = {
   id: string;
   revision: number;
   startedAt: string;
   endedAt: string | null;
+  /**
+   * Optional because snapshots cached in IndexedDB by earlier builds have no
+   * `plan` key. `chooseWorkoutSnapshot` normalizes it to null on read.
+   */
+  plan?: WorkoutPlan | null;
   exercises: {
     id: string;
     order: number;
