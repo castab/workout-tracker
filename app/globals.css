@@ -3,12 +3,18 @@
 /*
  * Material Symbols Rounded, subsetted to only the glyphs this app uses.
  * The full variable font from the `material-symbols` package is 5.1 MB, which is
- * indefensible for a phone-first offline PWA that needs seven icons. This subset
- * is 7.4 KB and lives in public/fonts/ so the service worker can precache it.
+ * indefensible for a phone-first offline PWA that needs thirteen icons. This
+ * subset is 9.0 KB and lives in public/fonts/ so the service worker can precache it.
  *
  * To regenerate after adding an icon, append its name to `icon_names` (keep the
- * list alphabetical), fetch the CSS, and download the woff2 it points at:
- *   curl "https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..24,400..700,0..1,0&icon_names=add,arrow_back,delete,edit,logout,remove,settings"
+ * list alphabetical), fetch the CSS, and download the woff2 it points at. Send a
+ * browser User-Agent — the default one gets per-weight TTFs instead of the single
+ * variable woff2:
+ *   curl -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" \
+ *     "https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..24,400..700,0..1,0&icon_names=add,arrow_back,arrow_upward,check,chevron_right,delete,edit,expand_less,expand_more,logout,play_arrow,remove,settings"
+ *
+ * Bump CACHE_VERSION in public/sw.js after replacing the file, or installed PWAs
+ * keep serving the old subset and new glyphs render as their literal names.
  */
 @font-face {
   font-family: "Material Symbols Rounded";

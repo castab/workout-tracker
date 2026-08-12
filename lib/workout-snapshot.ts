@@ -20,6 +20,10 @@ async function getWorkoutRow(workoutId: string, userId?: string) {
           },
         },
       },
+      planItems: {
+        orderBy: { order: "asc" },
+        include: { exercise: true },
+      },
     },
   }).then((workout) => (workout && (!userId || workout.userId === userId) ? workout : null));
 }
@@ -30,6 +34,19 @@ export function serializeWorkoutSnapshot(workout: WorkoutRow): WorkoutSnapshot {
     revision: workout.revision,
     startedAt: workout.startedAt.toISOString(),
     endedAt: workout.endedAt?.toISOString() ?? null,
+    plan: workout.planItems.length > 0
+      ? {
+          routineId: workout.routineId,
+          name: workout.planName,
+          items: workout.planItems.map((item) => ({
+            id: item.id,
+            order: item.order,
+            name: item.exercise.name,
+            variant: item.variant,
+            target: item.target,
+          })),
+        }
+      : null,
     exercises: workout.exercises.map((entry) => ({
       id: entry.id,
       order: entry.order,

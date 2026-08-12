@@ -2,53 +2,32 @@
 
 import { useRef, useState } from "react";
 import { Icon } from "@/app/material-icon";
-import { formatLastUsed, formatWeight } from "@/lib/workout-metrics";
-import { type ExerciseSuggestion, findStartingWeight } from "@/lib/workout-suggestions";
+import { type ExerciseSuggestion, describeSuggestion, matchSuggestions } from "@/lib/workout-suggestions";
 
 type AddExercisePanelProps = {
   suggestions: ExerciseSuggestion[];
   onAdd: (name: string) => void;
+  /** Collapsed-button copy. Reads "Add something else" inside a routine's plan. */
+  label?: string;
   /** Suggestions come from the last online page load and are empty in preview mode. */
   suggestionsUnavailable?: boolean;
 };
-
-function suggestionMeta(suggestions: ExerciseSuggestion[], suggestion: ExerciseSuggestion) {
-  const startingWeight = findStartingWeight(suggestions, suggestion.name, "");
-
-  if (startingWeight) {
-    return `Last start ${formatWeight(startingWeight.value, startingWeight.unit)} · ${formatLastUsed(startingWeight.lastUsedAt)}`;
-  }
-
-  return `Used ${suggestion.usageCount}x · ${formatLastUsed(suggestion.lastUsedAt)}`;
-}
 
 /**
  * Collapsed to a single button until tapped — the add flow is the least-used part
  * of this screen and should not compete with the entry pad for space.
  */
-export function AddExercisePanel({ suggestions, onAdd, suggestionsUnavailable }: AddExercisePanelProps) {
+export function AddExercisePanel({
+  suggestions,
+  onAdd,
+  label = "Add exercise",
+  suggestionsUnavailable,
+}: AddExercisePanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const query = name.trim().toLowerCase();
-  const matches = query.length >= 2
-    ? suggestions
-        .filter((suggestion) => {
-          const suggestionName = suggestion.name.toLowerCase();
-
-          return suggestionName.includes(query) && suggestionName !== query;
-        })
-        .sort((a, b) => {
-          const aStartsWith = a.name.toLowerCase().startsWith(query);
-          const bStartsWith = b.name.toLowerCase().startsWith(query);
-
-          if (aStartsWith !== bStartsWith) return aStartsWith ? -1 : 1;
-
-          return suggestions.indexOf(a) - suggestions.indexOf(b);
-        })
-        .slice(0, 4)
-    : suggestions.slice(0, 3);
+  const matches = matchSuggestions(suggestions, name);
 
   function add(nextName: string) {
     const trimmed = nextName.trim();
@@ -85,7 +64,7 @@ export function AddExercisePanel({ suggestions, onAdd, suggestionsUnavailable }:
         }}
       >
         <Icon name="add" size={20} />
-        Add exercise
+        {label}
       </button>
     );
   }
@@ -109,7 +88,7 @@ export function AddExercisePanel({ suggestions, onAdd, suggestionsUnavailable }:
             color: "var(--text-faint)",
           }}
         >
-          Add exercise
+          {label}
         </span>
         <button
           type="button"
@@ -212,7 +191,7 @@ export function AddExercisePanel({ suggestions, onAdd, suggestionsUnavailable }:
                   color: "var(--text-faint)",
                 }}
               >
-                {suggestionMeta(suggestions, suggestion)}
+                {describeSuggestion(suggestions, suggestion.name)}
               </span>
             </button>
           ))}

@@ -6,6 +6,7 @@ import { Icon } from "@/app/material-icon";
 import { AddExercisePanel } from "@/app/workouts/[workoutId]/add-exercise-panel";
 import { CollapsedExerciseRow } from "@/app/workouts/[workoutId]/collapsed-exercise-row";
 import { FocusExerciseCard } from "@/app/workouts/[workoutId]/focus-exercise-card";
+import { PlanPanel, matchPlanItem } from "@/app/workouts/[workoutId]/plan-panel";
 import {
   addPendingOperation,
   acknowledgePendingOperations,
@@ -447,7 +448,17 @@ export function OfflineWorkoutClient({
   // to the first remaining exercise.
   const focusIndex = snapshot.exercises.findIndex((entry) => entry.id === focusId);
   const focusEntry = focusIndex >= 0 ? snapshot.exercises[focusIndex] : snapshot.exercises[0];
-  const otherExercises = snapshot.exercises.filter((entry) => entry.id !== focusEntry?.id);
+  const plan = snapshot.plan ?? null;
+  // Plan exercises are listed by the panel, so they must not also appear under
+  // "Also in this workout" — only off-plan additions belong there.
+  const plannedIds = new Set(
+    (plan?.items ?? [])
+      .map((item) => matchPlanItem(snapshot.exercises, item)?.id)
+      .filter((id): id is string => Boolean(id)),
+  );
+  const otherExercises = snapshot.exercises.filter(
+    (entry) => entry.id !== focusEntry?.id && !plannedIds.has(entry.id),
+  );
   const setCount = snapshot.exercises.reduce((total, entry) => total + entry.sets.length, 0);
 
   function modeFor(entry: WorkoutSnapshot["exercises"][number]): ExerciseMode {
@@ -472,11 +483,11 @@ export function OfflineWorkoutClient({
     );
   }
 
-  function addExercise(name: string) {
+  function addExercise(name: string, variant = "") {
     const tempWorkoutExerciseId = createId("exercise");
 
     setFocusId(tempWorkoutExerciseId);
-    void queue(operation("addExercise", { tempWorkoutExerciseId, name, variant: "" }));
+    void queue(operation("addExercise", { tempWorkoutExerciseId, name, variant }));
   }
 
   function removeExercise(workoutExerciseId: string) {
@@ -612,7 +623,8 @@ export function OfflineWorkoutClient({
             onChangeVariant={(variant) => void queue(operation("updateExerciseVariant", { workoutExerciseId: focusEntry.id, variant }))}
             onRemove={() => removeExercise(focusEntry.id)}
           />
-        ) : (
+        ) : plan ? null : (
+          // With a plan on screen, the panel below is already the call to action.
           <section
             className="text-center"
             style={{
@@ -629,6 +641,24 @@ export function OfflineWorkoutClient({
             </p>
           </section>
         )}
+
+        {plan && !snapshot.endedAt ? (
+          <PlanPanel
+            plan={plan}
+            exercises={snapshot.exercises}
+            focusId={focusEntry?.id ?? null}
+            onPick={(item) => addExercise(item.name, item.variant)}
+            onFocus={setFocusId}
+            addSlot={
+              <AddExercisePanel
+                suggestions={suggestions}
+                onAdd={addExercise}
+                label="Add something else"
+                suggestionsUnavailable={syncMode === "local"}
+              />
+            }
+          />
+        ) : null}
 
         {otherExercises.length > 0 ? (
           <section style={{ display: "grid", gap: "var(--space-2)" }}>
@@ -648,7 +678,7 @@ export function OfflineWorkoutClient({
           </section>
         ) : null}
 
-        {!snapshot.endedAt ? (
+        {!plan && !snapshot.endedAt ? (
           <AddExercisePanel
             suggestions={suggestions}
             onAdd={addExercise}

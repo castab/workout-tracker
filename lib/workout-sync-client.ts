@@ -126,7 +126,12 @@ export function chooseWorkoutSnapshot(
     pendingOperations.length > 0 ||
     cachedSnapshot.revision > normalizedServerSnapshot.revision
   ) {
-    return cachedSnapshot;
+    // The cached copy wins on logged content, but the plan is immutable and only
+    // ever comes from the server — a snapshot cached before plans existed has
+    // none, so borrow the rendered one rather than dropping the panel.
+    return cachedSnapshot.plan === undefined && normalizedServerSnapshot.plan
+      ? { ...cachedSnapshot, plan: normalizedServerSnapshot.plan }
+      : cachedSnapshot;
   }
 
   return normalizedServerSnapshot;
