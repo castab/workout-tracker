@@ -8,9 +8,15 @@
 export type IconName =
   | "add"
   | "arrow_back"
+  | "arrow_upward"
+  | "check"
+  | "chevron_right"
   | "delete"
   | "edit"
+  | "expand_less"
+  | "expand_more"
   | "logout"
+  | "play_arrow"
   | "remove"
   | "settings";
 

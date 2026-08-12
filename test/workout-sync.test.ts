@@ -5,7 +5,13 @@ import {
   chooseWorkoutSnapshot,
   overlayWorkoutOperations,
 } from "../lib/workout-sync-client";
-import type { OfflineWorkoutOperation, WorkoutSnapshot } from "../lib/workout-sync-types";
+import type { OfflineWorkoutOperation, WorkoutPlan, WorkoutSnapshot } from "../lib/workout-sync-types";
+
+const plan: WorkoutPlan = {
+  routineId: "routine-one",
+  name: "Push day",
+  items: [{ id: "plan-one", order: 0, name: "Bench press", variant: "Barbell", target: "4 × 6-8" }],
+};
 
 function snapshot(revision: number, setIds: string[] = []): WorkoutSnapshot {
   return {
@@ -70,6 +76,36 @@ test("replaying an add-set operation is idempotent", () => {
 
   assert.deepEqual(twice, once);
   assert.deepEqual(twice.exercises[0].sets.map((set) => set.id), ["stable-set-id"]);
+});
+
+test("the plan survives every operation, since no operation may touch it", () => {
+  const planned = { ...snapshot(1, ["set-one"]), plan };
+  const reconciled = overlayWorkoutOperations(planned, [
+    addSet("queued-set"),
+    { id: "operation-finish", type: "finishWorkout", createdAt: "2026-07-30T19:00:00.000Z", payload: {} },
+  ]);
+
+  assert.deepEqual(reconciled.plan, plan);
+});
+
+test("a snapshot cached before plans existed borrows the rendered plan", () => {
+  const rendered = { ...snapshot(4, ["server-set"]), plan };
+  const cached = snapshot(4, ["server-set", "local-set"]);
+
+  assert.equal(cached.plan, undefined);
+
+  const chosen = chooseWorkoutSnapshot(rendered, cached, [addSet("local-set")]);
+
+  // The cached sets win; the plan is filled in from the server render.
+  assert.deepEqual(chosen.exercises[0].sets.map((set) => set.id), ["server-set", "local-set"]);
+  assert.deepEqual(chosen.plan, plan);
+});
+
+test("a cached snapshot that already knows it has no plan is left alone", () => {
+  const rendered = snapshot(4);
+  const cached = { ...snapshot(4, ["local-set"]), plan: null };
+
+  assert.equal(chooseWorkoutSnapshot(rendered, cached, [addSet("local-set")]), cached);
 });
 
 test("operations queued during a request overlay the returned server snapshot", () => {

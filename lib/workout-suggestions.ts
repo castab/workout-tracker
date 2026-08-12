@@ -1,4 +1,4 @@
-import type { ExerciseMode } from "@/lib/workout-metrics";
+import { type ExerciseMode, formatLastUsed, formatWeight } from "@/lib/workout-metrics";
 
 export type StartingWeight = {
   value: string;
@@ -59,4 +59,57 @@ export function findSuggestion(suggestions: ExerciseSuggestion[], name: string) 
   const normalized = name.trim().toLowerCase();
 
   return suggestions.find((item) => item.name.toLowerCase() === normalized) ?? null;
+}
+
+/**
+ * Typeahead for every place that picks an exercise by name: the add-exercise
+ * panel and the routine builder. Under two characters it just offers the top of
+ * the list, since ranking one letter is noise.
+ */
+export function matchSuggestions(
+  suggestions: ExerciseSuggestion[],
+  query: string,
+  options: { exclude?: string[]; limit?: number } = {},
+) {
+  const normalizedQuery = query.trim().toLowerCase();
+  const excluded = new Set((options.exclude ?? []).map((name) => name.trim().toLowerCase()));
+  const available = excluded.size > 0
+    ? suggestions.filter((suggestion) => !excluded.has(suggestion.name.toLowerCase()))
+    : suggestions;
+
+  if (normalizedQuery.length < 2) {
+    return available.slice(0, options.limit ?? 3);
+  }
+
+  return available
+    .filter((suggestion) => {
+      const name = suggestion.name.toLowerCase();
+
+      return name.includes(normalizedQuery) && name !== normalizedQuery;
+    })
+    // A prefix match is what the user is most likely typing towards.
+    .sort((a, b) => {
+      const aStartsWith = a.name.toLowerCase().startsWith(normalizedQuery);
+      const bStartsWith = b.name.toLowerCase().startsWith(normalizedQuery);
+
+      if (aStartsWith !== bStartsWith) return aStartsWith ? -1 : 1;
+
+      return available.indexOf(a) - available.indexOf(b);
+    })
+    .slice(0, options.limit ?? 4);
+}
+
+/** The one-line history hint under an exercise name: "Last start 135 lb · 6d ago". */
+export function describeSuggestion(suggestions: ExerciseSuggestion[], name: string, variant = "") {
+  const suggestion = findSuggestion(suggestions, name);
+
+  if (!suggestion) return "New to you";
+
+  const startingWeight = findStartingWeight(suggestions, name, variant);
+
+  if (startingWeight) {
+    return `Last start ${formatWeight(startingWeight.value, startingWeight.unit)} · ${formatLastUsed(startingWeight.lastUsedAt)}`;
+  }
+
+  return `Used ${suggestion.usageCount}x · ${formatLastUsed(suggestion.lastUsedAt)}`;
 }
