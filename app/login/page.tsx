@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { isDemoMode } from "@/app/demo-mode";
 import { ensureInitialAdminUser, getCurrentUser } from "@/lib/auth";
 import { loginAction } from "./actions";
+import { PasskeyLoginButton } from "./passkey-login-button";
 
 export const dynamic = "force-dynamic";
 
@@ -93,6 +94,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             Sign in
           </button>
         </form>
+
+        <PasskeyLoginButton />
       </section>
     </main>
   );
