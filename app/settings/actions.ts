@@ -137,6 +137,20 @@ export async function updateUserUsernameAction(userId: string, formData: FormDat
   redirect("/settings?message=username-updated");
 }
 
+export async function deletePasskeyAction(passkeyId: string) {
+  const user = await requireUser();
+  const passkey = await prisma.passkey.findUnique({ where: { id: passkeyId } });
+
+  if (!passkey || passkey.userId !== user.id) {
+    redirect("/settings?error=passkeyMissing");
+  }
+
+  await prisma.passkey.delete({ where: { id: passkeyId } });
+
+  revalidatePath("/settings");
+  redirect("/settings?message=passkey-removed");
+}
+
 export async function transferAdminAction(userId: string) {
   const admin = await requireAdmin();
 

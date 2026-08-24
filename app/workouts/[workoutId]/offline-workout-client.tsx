@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Icon } from "@/app/material-icon";
 import { AddExercisePanel } from "@/app/workouts/[workoutId]/add-exercise-panel";
 import { CollapsedExerciseRow } from "@/app/workouts/[workoutId]/collapsed-exercise-row";
 import { FocusExerciseCard } from "@/app/workouts/[workoutId]/focus-exercise-card";
 import { PlanPanel, matchPlanItem } from "@/app/workouts/[workoutId]/plan-panel";
+import { deleteWorkoutAction } from "@/app/workouts/actions";
 import {
   addPendingOperation,
   acknowledgePendingOperations,
@@ -161,6 +162,8 @@ export function OfflineWorkoutClient({
   // records an explicit override so an empty exercise can be switched to cardio
   // before it has any metrics to derive from.
   const [modeOverrides, setModeOverrides] = useState<Record<string, ExerciseMode>>({});
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [pendingDelete, startDeleteTransition] = useTransition();
   const snapshotRef = useRef(initialSnapshot);
   const mountedRef = useRef(false);
   const persistenceRef = useRef<Promise<void>>(Promise.resolve());
@@ -444,6 +447,23 @@ export function OfflineWorkoutClient({
     return () => window.clearInterval(retry);
   }, [syncState, syncPending]);
 
+  useEffect(() => {
+    if (!confirmingDelete) return;
+
+    const timeout = window.setTimeout(() => setConfirmingDelete(false), 4_000);
+
+    return () => window.clearTimeout(timeout);
+  }, [confirmingDelete]);
+
+  function handleDeleteWorkout() {
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      return;
+    }
+
+    startDeleteTransition(() => deleteWorkoutAction(snapshot.id));
+  }
+
   // The focused exercise can vanish when another client deletes it. Fall back
   // to the first remaining exercise.
   const focusIndex = snapshot.exercises.findIndex((entry) => entry.id === focusId);
@@ -642,7 +662,7 @@ export function OfflineWorkoutClient({
           </section>
         )}
 
-        {plan && !snapshot.endedAt ? (
+        {plan ? (
           <PlanPanel
             plan={plan}
             exercises={snapshot.exercises}
@@ -678,13 +698,32 @@ export function OfflineWorkoutClient({
           </section>
         ) : null}
 
-        {!plan && !snapshot.endedAt ? (
+        {!plan ? (
           <AddExercisePanel
             suggestions={suggestions}
             onAdd={addExercise}
             suggestionsUnavailable={syncMode === "local"}
           />
         ) : null}
+
+        <button
+          type="button"
+          disabled={pendingDelete}
+          onClick={handleDeleteWorkout}
+          style={{
+            width: "100%",
+            height: "var(--control-field)",
+            borderRadius: "var(--radius-lg)",
+            border: "1px solid color-mix(in srgb, var(--red-400) 40%, transparent)",
+            background: "transparent",
+            color: "var(--red-200)",
+            font: "var(--weight-bold) var(--text-base)/1 var(--font-sans)",
+            cursor: pendingDelete ? "not-allowed" : "pointer",
+            transition: "var(--transition-default)",
+          }}
+        >
+          {confirmingDelete ? "Tap again to delete" : "Delete workout"}
+        </button>
       </div>
     </main>
   );

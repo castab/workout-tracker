@@ -61,7 +61,7 @@ export async function POST(request: Request, context: RouteContext) {
         select: { endedAt: true, userId: true },
       });
 
-      if (!workout || workout.userId !== user.id || workout.endedAt !== null) {
+      if (!workout || workout.userId !== user.id) {
         return;
       }
 
@@ -205,11 +205,13 @@ export async function POST(request: Request, context: RouteContext) {
           where: { id: workoutId },
           select: {
             userId: true,
+            endedAt: true,
             exercises: { select: { sets: { select: { id: true } } } },
           },
         });
         const canFinish =
           workoutToFinish?.userId === user.id &&
+          !workoutToFinish.endedAt &&
           workoutToFinish.exercises.length > 0 &&
           workoutToFinish.exercises.every((exercise) => exercise.sets.length > 0);
 

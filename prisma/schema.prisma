@@ -32,6 +32,11 @@ enum UserRole {
   ADMIN
 }
 
+enum CredentialDeviceType {
+  SINGLE_DEVICE
+  MULTI_DEVICE
+}
+
 model User {
   id           String    @id @default(cuid())
   username     String    @unique
@@ -39,6 +44,7 @@ model User {
   role         UserRole  @default(USER)
   createdAt    DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+  passkeys     Passkey[]
   routines     Routine[]
   sessions     Session[]
   workouts     Workout[]
@@ -55,6 +61,24 @@ model Session {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model Passkey {
+  id           String               @id @default(cuid())
+  userId       String
+  credentialId String               @unique
+  publicKey    Bytes
+  counter      Int                  @default(0)
+  transports   String[]             @default([])
+  deviceType   CredentialDeviceType
+  backedUp     Boolean              @default(false)
+  nickname     String               @default("")
+  createdAt    DateTime             @default(now()) @db.Timestamptz(3)
+  lastUsedAt   DateTime?            @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Workout {
