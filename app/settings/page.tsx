@@ -7,10 +7,12 @@ import { minimumPasswordLength } from "@/lib/users";
 import {
   changePasswordAction,
   createUserAction,
+  deletePasskeyAction,
   transferAdminAction,
   updateOwnUsernameAction,
   updateUserUsernameAction,
 } from "./actions";
+import { PasskeyManager } from "./passkey-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,7 @@ const errorMessages: Record<string, string> = {
   duplicate: "That username is already in use.",
   match: "New passwords do not match.",
   missing: "All password fields are required.",
+  passkeyMissing: "Passkey could not be found.",
   short: "New password must be at least 12 characters.",
   userMissing: "User could not be found.",
   username: "Username must be 3-32 characters using lowercase letters, numbers, underscores, or hyphens.",
@@ -34,6 +37,7 @@ const errorMessages: Record<string, string> = {
 const statusMessages: Record<string, string> = {
   "admin-transferred": "Admin role transferred.",
   "admin-unchanged": "That user is already the admin.",
+  "passkey-removed": "Passkey removed.",
   "user-created": "User created.",
   "username-updated": "Username updated.",
 };
@@ -47,6 +51,10 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   const users = user.role === "ADMIN"
     ? await prisma.user.findMany({ orderBy: [{ role: "desc" }, { username: "asc" }] })
     : [];
+  const passkeys = await prisma.passkey.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: "asc" },
+  });
 
   const { error, message: status } = await searchParams;
   const message = error ? errorMessages[error] : null;
@@ -153,6 +161,43 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
               Change password
             </button>
           </form>
+        </section>
+
+        <section className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5">
+          <h2 className="text-xl font-black">Passkeys</h2>
+          <p className="mt-2 text-sm font-semibold text-zinc-400">
+            Sign in without a password using a device passkey.
+          </p>
+
+          <div className="mt-5">
+            <PasskeyManager />
+          </div>
+
+          <div className="mt-5 space-y-3">
+            {passkeys.length === 0 ? (
+              <p className="text-sm font-semibold text-zinc-500">No passkeys yet.</p>
+            ) : (
+              passkeys.map((passkey) => (
+                <div key={passkey.id} className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-black">{passkey.nickname || "Passkey"}</p>
+                      <p className="text-sm font-semibold text-zinc-500">
+                        Added {passkey.createdAt.toLocaleDateString()} · Last used{" "}
+                        {passkey.lastUsedAt ? passkey.lastUsedAt.toLocaleDateString() : "never"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <form action={deletePasskeyAction.bind(null, passkey.id)}>
+                    <button className="h-12 w-full rounded-2xl border border-red-500/40 px-4 text-sm font-black text-red-100">
+                      Remove
+                    </button>
+                  </form>
+                </div>
+              ))
+            )}
+          </div>
         </section>
 
         {user.role === "ADMIN" ? (
